@@ -4,9 +4,7 @@ import { Disabled, Empty } from "../components/Common";
 export default function Dashboard() {
   return (
     <>
-      <div className="eyebrow">YOUR WORKSPACE</div>
-      <h1>留一点空间，给好好沟通。</h1>
-      <p className="subtitle">从一场专注的会议开始，让想法更进一步。</p>
+      <h1>工作台</h1>
       <div className="actions">
         <section className="card action-card">
           <div className="action-icon">

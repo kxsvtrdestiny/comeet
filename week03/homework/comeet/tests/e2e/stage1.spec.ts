@@ -1,6 +1,6 @@
 import { test, expect } from "../../web/node_modules/@playwright/test";
 const routes = [
-  ["/", "留一点空间，给好好沟通。"],
+  ["/", "发起即时会议"],
   ["/login", "欢迎回来"],
   ["/register", "创建 Comeet 账号"],
   ["/meetings/preview/prepare", "入会前，准备一下。"],
