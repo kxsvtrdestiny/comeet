@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-wal
+*.db-shm
+*.log
+artifacts/
+playwright-report/
+test-results/
+
+web/public/comeet-stage1.zip
