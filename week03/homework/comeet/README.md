@@ -108,3 +108,5 @@ Windows 本机仍使用 `npm run dev`。云环境预览使用 `npm run dev:cloud
 在 web 目录运行 `npm run build:pages`，生成 `artifacts/pages`；使用 `/comeet/` 资源前缀和 HashRouter，支持 `#/login`、`#/meetings/preview/prepare`、`#/meetings/preview/room` 等路由刷新。该模式明确提示静态预览不连接后端，并提供源码 ZIP。普通开发及默认生产构建不受该模式影响。
 
 GitHub Pages 无法运行 Go/SQLite，因此静态站不能代替完整第一阶段 Windows 验收。LiveKit、DeepSeek 和账号功能仍未实现。若仓库尚未开启 Pages，请在 GitHub 仓库 Settings → Pages → Build and deployment，选择 Deploy from a branch，分支 gh-pages、目录 /(root)，保存。该操作与源码 push 分开。
+
+源码已推送后可直接下载：https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage1-review.zip 。Pages 开启与访问步骤见 [网页测试](docs/网页测试.md)。
