@@ -8,7 +8,7 @@ export default function Prepare() {
         <ArrowLeft size={16} />
         返回工作台
       </Link>
-      <h1>入会前，准备一下。</h1>
+      <h1>入会准备</h1>
       <p className="subtitle">准备页骨架 · 当前未查询或加入任何真实会议。</p>
       <div className="prepare-grid">
         <div className="preview">

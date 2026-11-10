@@ -132,6 +132,10 @@ nav a.active {
   font-weight: 600;
 }
 .sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   margin-top: auto;
   padding-top: 64px;
   font-size: 12px;
@@ -164,12 +168,6 @@ main {
   margin: auto;
   padding: 48px 40px 24px;
 }
-.eyebrow {
-  font-size: 11px;
-  color: var(--primary);
-  font-weight: 700;
-  letter-spacing: 2px;
-}
 .subtitle {
   color: var(--muted);
   margin-bottom: 32px;
@@ -188,13 +186,12 @@ main {
   box-shadow: 0 3px 8px #26345503;
 }
 .action-card {
-  padding: 32px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
 }
 .action-card h2 {
   margin-top: 24px;
-}
-.action-card p {
-  color: var(--muted);
 }
 .action-icon {
   display: flex;
@@ -227,7 +224,7 @@ main {
   width: 100%;
 }
 .action-card:first-child .button {
-  margin-top: 64px;
+  margin-top: auto;
 }
 .section-title {
   display: flex;
@@ -310,7 +307,7 @@ main {
 }
 .page-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   color: #9aa1b1;
   font-size: 11px;
@@ -325,32 +322,19 @@ main {
   color: #7b87a3;
 }
 .auth-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
-  align-items: center;
-  min-height: 65vh;
-}
-.auth-intro h1 {
-  font-size: 42px;
-  line-height: 1.55;
-}
-.auth-intro p {
-  color: var(--muted);
-}
-hr {
-  width: 48px;
-  height: 3px;
-  border: 0;
-  background: #9ca8e8;
-  margin: 32px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 440px;
+  margin: 24px auto;
 }
 .auth-card {
   padding: 32px;
 }
-.auth-card h2 {
+.auth-card h1 {
   font-size: 24px;
-  margin-top: 24px;
+  margin: 16px 0;
 }
 .auth-card .button {
   width: 100%;
@@ -513,7 +497,7 @@ hr {
     padding-top: 64px;
   }
   .actions {
-    margin-top: 40px;
+    margin-top: 24px;
   }
 }
 @media (max-width: 1024px) {
@@ -526,12 +510,6 @@ hr {
   }
   .topbar {
     padding: 0 24px;
-  }
-  .auth-layout {
-    gap: 24px;
-  }
-  .auth-intro h1 {
-    font-size: 32px;
   }
   .room-body {
     grid-template-columns: 1fr 260px;
@@ -588,12 +566,6 @@ hr {
   .health-grid strong {
     display: inline;
     margin-left: 16px;
-  }
-  .auth-layout {
-    grid-template-columns: 1fr;
-  }
-  .auth-intro {
-    display: none;
   }
   .auth-card {
     max-width: 480px;

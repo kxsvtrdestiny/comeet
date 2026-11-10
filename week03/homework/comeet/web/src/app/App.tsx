@@ -34,7 +34,6 @@ export default function App() {
         </nav>
         <div className="sidebar-bottom">
           <span className="tag">阶段 01 / 08</span>
-          <p>先把基础，做得扎实。</p>
           <Link to="/login">登录界面 ↗</Link>
         </div>
       </aside>
@@ -65,7 +64,6 @@ export default function App() {
             />
           </Routes>
           <footer className="page-footer">
-            COMEET · 少一点打扰，多一点共识。
             <div className="preview-links">
               <Link to="/meetings/preview/prepare">准备页骨架</Link>
               <Link to="/meetings/preview/room">会议室骨架</Link>

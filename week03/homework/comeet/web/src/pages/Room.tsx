@@ -19,9 +19,8 @@ export default function Room() {
       <div className="room-body">
         <div className="room-stage">
           <Monitor size={48} />
-          <h2>为下一次讨论，留好位置。</h2>
+          <h2>尚未连接会议</h2>
           <p>第 3 阶段接通成员与聊天，第 4 阶段接入真实音视频。</p>
-          <span>无演示成员、无模拟聊天</span>
         </div>
         <aside className="room-panel">
           <div className="tabs">

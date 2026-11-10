@@ -1,9 +1,9 @@
 import { test, expect } from "../../web/node_modules/@playwright/test";
 const routes = [
   ["/", "发起即时会议"],
-  ["/login", "欢迎回来"],
-  ["/register", "创建 Comeet 账号"],
-  ["/meetings/preview/prepare", "入会前，准备一下。"],
+  ["/login", "登录"],
+  ["/register", "注册"],
+  ["/meetings/preview/prepare", "入会准备"],
   ["/meetings/preview/room", "等待连接会议"],
   ["/history", "历史会议"],
   ["/history/preview", "会议记录详情"],

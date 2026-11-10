@@ -6,21 +6,10 @@ export default function Auth({ register = false }: { register?: boolean }) {
   const [show, setShow] = useState(false);
   return (
     <div className="auth-layout">
-      <section className="auth-intro">
-        <div className="eyebrow">MEET WITH PURPOSE</div>
-        <h1>
-          相聚于此，
-          <br />
-          让想法发生。
-        </h1>
-        <p>一个简单、专注的团队会议空间。</p>
-        <hr />
-        <p className="muted">工程骨架 · 界面方向预览</p>
-        <Link to="/">返回工作台</Link>
-      </section>
+      <Link to="/">返回工作台</Link>
       <section className="card auth-card">
         <span className="tag">第 1 阶段 · 界面预览</span>
-        <h2>{register ? "创建 Comeet 账号" : "欢迎回来"}</h2>
+        <h1>{register ? "注册" : "登录"}</h1>
         <p className="muted">账号功能将在第 2 阶段开放，现在无需登录。</p>
         <form onSubmit={(e) => e.preventDefault()}>
           <label>

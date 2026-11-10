@@ -11,7 +11,6 @@ export default function Dashboard() {
             <Plus />
           </div>
           <h2>发起即时会议</h2>
-          <p>邀请伙伴，一起讨论下一步。</p>
           <Disabled>创建会议</Disabled>
         </section>
         <section className="card action-card">
@@ -19,7 +18,6 @@ export default function Dashboard() {
             <LogIn />
           </div>
           <h2>通过会议号加入</h2>
-          <p>与团队快速会合。</p>
           <label className="sr-only" htmlFor="meeting-no">
             会议号
           </label>
