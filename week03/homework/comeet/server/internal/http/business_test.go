@@ -519,3 +519,20 @@ func TestReservationRestartAndBan(t *testing.T) {
 	s, r = h.call("POST", "/meetings/"+m.ID+"/join", a.Token, input)
 	check(t, s, r, 403, "REMOVED_FROM_MEETING")
 }
+
+func TestExpiredAuthDoesNotKeepReservedSeat(t *testing.T) {
+	h := newHarness(t)
+	h.c.MaxParticipants = 1
+	h.handler = Router(h.db, h.c)
+	a, b := h.user("ExpiringHost"), h.user("NextGuest")
+	m := h.create(a.Token, "expiry slot")
+	s, r := h.call("POST", "/meetings/"+m.ID+"/join", a.Token, meeting.JoinInput{ClientRequestID: uuid.NewString()})
+	check(t, s, r, 200, "OK")
+	if _, e := h.db.Exec("UPDATE auth_sessions SET expires_at=? WHERE user_id=?", time.Now().Add(-time.Second).UnixMilli(), a.User.ID); e != nil {
+		t.Fatal(e)
+	}
+	s, r = h.call("GET", "/me", a.Token, nil)
+	check(t, s, r, 401, "SESSION_EXPIRED")
+	s, r = h.call("POST", "/meetings/"+m.ID+"/join", b.Token, meeting.JoinInput{ClientRequestID: uuid.NewString()})
+	check(t, s, r, 200, "OK")
+}

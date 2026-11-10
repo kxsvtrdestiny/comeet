@@ -286,7 +286,7 @@ func (s *Service) Join(ctx context.Context, user auth.Identity, id string, in Jo
 		return Reservation{}, apperr.New(403, "REMOVED_FROM_MEETING", "你已被移出本场会议")
 	}
 	// Expired reservations are removed from capacity and the partial unique index.
-	if _, e = tx.ExecContext(ctx, "UPDATE participant_sessions SET state='left',left_at=? WHERE meeting_id=? AND state='joining' AND reserved_until<=?", now, id, now); e != nil {
+	if _, e = tx.ExecContext(ctx, "UPDATE participant_sessions SET state='left',left_at=? WHERE meeting_id=? AND state='joining' AND (reserved_until<=? OR auth_session_id IN (SELECT id FROM auth_sessions WHERE revoked_at IS NOT NULL OR expires_at<=?))", now, id, now, now); e != nil {
 		return Reservation{}, e
 	}
 	var sessionID, sid, state string

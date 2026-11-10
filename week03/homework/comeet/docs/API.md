@@ -30,7 +30,7 @@ list：`{items,nextCursor,hasMore}`，started_at DESC/id DESC 游标分页，key
 
 clientRequestId 由客户端 crypto.randomUUID() 生成。创建重试沿用同 ID 和标题，换内容返回 IDEMPOTENCY_CONFLICT。join 同用户/会议/登录 sid/请求重试返回原预留且不延长有效期；不同请求冲突 ALREADY_JOINED，到期原请求 SESSION_EXPIRED，另一个登录 sid 不能接管旧预留。
 
-预留在短事务中检查 active、sid 有效、封禁、同用户唯一性和容量。到期 joining 在下一次 join 事务中惰性释放。单连接/短事务令容量计数和插入原子，部分唯一索引再次限制同用户有效会话。预留不写 meeting_members，不获得详情或历史权限。恢复凭证由随机 session UUID 和服务器密钥的域分离 HMAC 推导，保证幂等重试可重现；数据库只存其 SHA-256，不存原始凭证。
+预留在短事务中检查 active、sid 有效、封禁、同用户唯一性和容量。到期 joining 或绑定登录已到期/撤销的预留，在下一次 join 事务中惰性释放。单连接/短事务令容量计数和插入原子，部分唯一索引再次限制同用户有效会话。预留不写 meeting_members，不获得详情或历史权限。恢复凭证由随机 session UUID 和服务器密钥的域分离 HMAC 推导，保证幂等重试可重现；数据库只存其 SHA-256，不存原始凭证。
 
 JWT HS256 含 sub/sid/iss/aud/iat/exp。每次校验算法、签名、时间、iss/aud 和 auth_sessions；库内不存明文 JWT，默认 8 小时，不做刷新令牌。退出仅撤销当前 sid。登录响应及私有 API Cache-Control:no-store。用户名 ASCII 3–32、规范化大小写唯一；显示名 1–32 Unicode 字符；密码至少 8 字符且 UTF-8 最多 72 字节，bcrypt cost=10。
 
