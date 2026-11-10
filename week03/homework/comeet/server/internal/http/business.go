@@ -5,6 +5,7 @@ import (
 	"comeet/server/internal/auth"
 	"comeet/server/internal/config"
 	"comeet/server/internal/meeting"
+	"comeet/server/internal/realtime"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -88,7 +89,7 @@ func authLimit() func(http.Handler) http.Handler {
 		})
 	}
 }
-func business(r chi.Router, db *sql.DB, c config.Config) {
+func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) {
 	a := &auth.Service{DB: db, Config: c}
 	m := &meeting.Service{DB: db, Config: c}
 	r.Group(func(public chi.Router) {
@@ -139,6 +140,10 @@ func business(r chi.Router, db *sql.DB, c config.Config) {
 		private.Get("/api/v1/me", func(w http.ResponseWriter, r *http.Request) { send(w, r, 200, "OK", "success", identity(r).User) })
 		private.Post("/api/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 			if e := a.Logout(r.Context(), identity(r)); e != nil {
+				fail(w, r, e)
+				return
+			}
+			if e := hub.RevokeSID(r.Context(), identity(r).SID); e != nil {
 				fail(w, r, e)
 				return
 			}
@@ -204,6 +209,86 @@ func business(r chi.Router, db *sql.DB, c config.Config) {
 			}
 			send(w, r, 200, "OK", "success", v)
 		})
+		private.Post("/api/v1/meetings/{id}/resume", func(w http.ResponseWriter, r *http.Request) {
+			var in realtime.ResumeInput
+			if !decode(w, r, &in) {
+				return
+			}
+			v, e := hub.Resume(r.Context(), identity(r), chi.URLParam(r, "id"), in)
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Post("/api/v1/meetings/{id}/ws-ticket", func(w http.ResponseWriter, r *http.Request) {
+			var in realtime.SessionInput
+			if !decode(w, r, &in) {
+				return
+			}
+			v, e := hub.Ticket(r.Context(), identity(r), chi.URLParam(r, "id"), in)
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Post("/api/v1/meetings/{id}/leave", func(w http.ResponseWriter, r *http.Request) {
+			var in realtime.SessionInput
+			if !decode(w, r, &in) {
+				return
+			}
+			if e := hub.Leave(r.Context(), identity(r), chi.URLParam(r, "id"), in); e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", nil)
+		})
+		private.Get("/api/v1/meetings/{id}/members", func(w http.ResponseWriter, r *http.Request) {
+			v, e := hub.Members(r.Context(), identity(r), chi.URLParam(r, "id"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Get("/api/v1/meetings/{id}/messages", func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			limit := 50
+			var before, after int64
+			var err error
+			if q.Has("beforeId") {
+				before, err = strconv.ParseInt(q.Get("beforeId"), 10, 64)
+				if err != nil || before <= 0 {
+					fail(w, r, apperr.Invalid("历史游标无效"))
+					return
+				}
+			}
+			if q.Has("afterId") {
+				after, err = strconv.ParseInt(q.Get("afterId"), 10, 64)
+				if err != nil || after < 0 {
+					fail(w, r, apperr.Invalid("补拉游标无效"))
+					return
+				}
+			}
+			if q.Has("beforeId") && q.Has("afterId") {
+				fail(w, r, apperr.Invalid("beforeId 与 afterId 不能同时使用"))
+				return
+			}
+			if q.Has("limit") {
+				limit, err = strconv.Atoi(q.Get("limit"))
+				if err != nil {
+					fail(w, r, apperr.Invalid("分页数量无效"))
+					return
+				}
+			}
+			v, e := hub.Messages(r.Context(), identity(r), chi.URLParam(r, "id"), before, after, q.Has("afterId"), limit)
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
 		private.Post("/api/v1/meetings/{id}/join", func(w http.ResponseWriter, r *http.Request) {
 			var in meeting.JoinInput
 			if !decode(w, r, &in) {
@@ -214,7 +299,7 @@ func business(r chi.Router, db *sql.DB, c config.Config) {
 				fail(w, r, e)
 				return
 			}
-			send(w, r, 200, "OK", "仅预留席位，尚未正式入会", v)
+			send(w, r, 200, "OK", "席位预留成功，等待 WebSocket 正式入会", v)
 		})
 	})
 }

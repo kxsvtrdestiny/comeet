@@ -3,6 +3,7 @@ package main
 import (
 	"comeet/server/internal/config"
 	httpapi "comeet/server/internal/http"
+	"comeet/server/internal/realtime"
 	"comeet/server/internal/store"
 	"context"
 	"flag"
@@ -38,11 +39,18 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	srv := &http.Server{Addr: c.Addr, Handler: httpapi.Router(db, c), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	hub := realtime.New(db, c)
+	if e = hub.Recover(context.Background()); e != nil {
+		slog.Error("recovery_failed")
+		os.Exit(1)
+	}
+	hub.Start()
+	defer hub.Shutdown()
+	srv := &http.Server{Addr: c.Addr, Handler: httpapi.Router(db, c, hub), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	done := make(chan error, 1)
-	go func() { slog.Info("server_start", "address", c.Addr, "stage", 2); done <- srv.ListenAndServe() }()
+	go func() { slog.Info("server_start", "address", c.Addr, "stage", 3); done <- srv.ListenAndServe() }()
 	select {
 	case e := <-done:
 		if e != http.ErrServerClosed {

@@ -62,16 +62,18 @@ for (const width of [1440, 1024, 768, 390])
     "/history",
     "/history/preview",
   ])
-    test(`${width}px ${route} load/refresh`, async ({ page }) => {
+    test(`${width}px ${route} load/refresh`, async ({ page, request }) => {
       if (route !== "/login" && route !== "/register") await seed(page, a);
       await page.setViewportSize({ width, height: 900 });
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
+      let roomId=m.id;
+      if(route==='/room'){const response=await request.post('/api/v1/meetings',{headers:{Authorization:`Bearer ${a.token}`},data:{title:'响应式文字会议',clientRequestId:crypto.randomUUID()}});roomId=(await response.json()).data.id}
       const path =
         route === "/prepare"
           ? `/meetings/${m.id}/prepare`
           : route === "/room"
-            ? `/meetings/${m.id}/room`
+            ? `/meetings/${roomId}/room`
             : route;
       await page.goto(path);
       await expect(page.locator("h1").first()).toBeVisible();
@@ -140,7 +142,7 @@ test("create, database-backed list, refresh and host detail", async ({
   await expect(
     page.locator("strong").filter({ hasText: /\d{3}-\d{3}-\d{3}/ }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: /进入会议/ })).toBeDisabled();
+  await expect(page.getByRole("link", { name: /进入会议/ })).toBeEnabled();
   await page.getByRole("link", { name: "返回工作台" }).click();
   const row = page.locator(".meeting-row").filter({ hasText: title });
   await expect(row).toBeVisible();
@@ -228,15 +230,15 @@ test("list network error and retry use real service", async ({ page }) => {
 test("real health after migration and retry", async ({ page, request }) => {
   await seed(page, a);
   await page.route("**/api/v1/health/ready", (r) => r.abort());
-  await page.goto("/");
+  await page.goto("/settings");
   await expect(page.getByRole("alert")).toContainText("无法连接业务服务");
   await page.unroute("**/api/v1/health/ready");
   await page.getByRole("button", { name: "重新检查" }).click();
   await expect(page.getByText("● 数据库初始化正常")).toBeVisible();
   const r = await request.get("/api/v1/health/ready");
   const d = (await r.json()).data;
-  expect(d.schemaVersion).toBe("002_accounts_meetings.sql");
-  expect(d.stage).toBe(2);
+  expect(d.schemaVersion).toBe("003_realtime_chat.sql");
+  expect(d.stage).toBe(3);
   expect(d.mediaConfigured).toBe(false);
   expect(d.aiConfigured).toBe(false);
 });

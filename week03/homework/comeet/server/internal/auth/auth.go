@@ -21,8 +21,9 @@ type User struct {
 	DisplayName string `json:"displayName"`
 }
 type Identity struct {
-	User User
-	SID  string
+	User      User
+	SID       string
+	ExpiresAt int64
 }
 type Claims struct {
 	SID string `json:"sid"`
@@ -122,7 +123,7 @@ func (s *Service) Authenticate(ctx context.Context, raw string) (Identity, error
 	if e != nil {
 		return Identity{}, e
 	}
-	return Identity{u, claims.SID}, nil
+	return Identity{User: u, SID: claims.SID, ExpiresAt: claims.ExpiresAt.UnixMilli()}, nil
 }
 func (s *Service) Logout(ctx context.Context, id Identity) error {
 	tx, e := s.DB.BeginTx(ctx, nil)

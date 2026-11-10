@@ -64,9 +64,9 @@ export default function Prepare() {
               </select>
             </label>
             <Disabled stage={4}>检测设备</Disabled>
-            <Disabled stage={3}>进入会议</Disabled>
+            <Link className="button" to={`/meetings/${id}/room`} aria-disabled={staticPreview} onClick={e=>{if(staticPreview)e.preventDefault()}}>进入会议</Link>
             <p className="muted">
-              正式入会将在第 3 阶段接通。浏览准备页不会占用席位或产生参会记录。
+              点击进入后才预留席位并正式入会。仅浏览准备页不会产生参会记录。
             </p>
           </section>
         </div>

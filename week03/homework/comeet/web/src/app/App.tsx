@@ -7,13 +7,14 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { Video, LayoutDashboard, History } from "lucide-react";
+import { Video, LayoutDashboard, History, Settings as SettingsIcon } from "lucide-react";
 import Dashboard from "../pages/Dashboard";
 import Auth from "../pages/Auth";
 import Prepare from "../pages/Prepare";
 import Room from "../pages/Room";
 import HistoryPage from "../pages/HistoryPage";
 import MeetingDetail from "../pages/MeetingDetail";
+import Settings from "../pages/Settings";
 import Protected, { SessionCheck } from "../components/Protected";
 import { useAuth } from "../stores/auth";
 import { post } from "../services/api";
@@ -47,7 +48,7 @@ export default function App() {
     <>
       <SessionCheck />
       {/^\/meetings\/[^/]+\/room\/?$/.test(pathname) ? (
-        protectedPage(<Room />)
+        <Routes><Route path="/meetings/:id/room" element={protectedPage(<Room/>)} /></Routes>
       ) : (
         <div className="shell">
           <aside className="sidebar">
@@ -67,9 +68,10 @@ export default function App() {
                 <History size={19} />
                 会议记录
               </NavLink>
+              <NavLink to="/settings"><SettingsIcon size={19}/>设置</NavLink>
             </nav>
             <div className="sidebar-bottom">
-              <span className="tag">阶段 02 / 08</span>
+              <span className="tag">阶段 03 / 08</span>
             </div>
           </aside>
           <div className="workspace">
@@ -105,7 +107,8 @@ export default function App() {
               )}
               <Routes>
                 <Route path="/" element={protectedPage(<Dashboard />)} />
-                <Route path="/login" element={<Auth />} />
+                <Route path="/settings" element={protectedPage(<Settings/>)} />
+              <Route path="/login" element={<Auth />} />
                 <Route path="/register" element={<Auth register />} />
                 <Route
                   path="/meetings/:id/prepare"

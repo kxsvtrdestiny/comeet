@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"comeet/server/internal/config"
+	"comeet/server/internal/realtime"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -37,7 +38,11 @@ func send(w http.ResponseWriter, r *http.Request, status int, code, message stri
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(Response{code, message, data, state.id})
 }
-func Router(db *sql.DB, c config.Config) http.Handler {
+func Router(db *sql.DB, c config.Config, realtimeServices ...*realtime.Service) http.Handler {
+	hub := realtime.New(db, c)
+	if len(realtimeServices) > 0 {
+		hub = realtimeServices[0]
+	}
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -68,9 +73,10 @@ func Router(db *sql.DB, c config.Config) http.Handler {
 			send(w, r, 503, "DATABASE_UNAVAILABLE", "数据库暂不可用", nil)
 			return
 		}
-		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 2})
+		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 3})
 	})
-	business(r, db, c)
+	business(r, db, c, hub)
+	r.Get("/ws", hub.WS)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		send(w, r, 404, "NOT_FOUND", "接口不存在或尚未开发", nil)
 	})
