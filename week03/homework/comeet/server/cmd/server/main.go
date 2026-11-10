@@ -50,7 +50,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	done := make(chan error, 1)
-	go func() { slog.Info("server_start", "address", c.Addr, "stage", 3); done <- srv.ListenAndServe() }()
+	go func() { slog.Info("server_start", "address", c.Addr, "stage", 4); done <- srv.ListenAndServe() }()
 	select {
 	case e := <-done:
 		if e != http.ErrServerClosed {

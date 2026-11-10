@@ -1,6 +1,6 @@
-# 开发约定 · 第三阶段
+# 开发约定 · 第四阶段
 
-依据 docs/开发规格-v2.0.md。前两阶段已由用户确认验收通过；第三阶段完成后停止等待验收，不开发第四阶段。截图、报错、继续修复不算下一阶段授权。
+依据 docs/开发规格-v2.0.md。前三阶段已由用户确认验收通过；第四阶段完成后停止等待验收，不开发第五阶段。截图、报错、继续修复不算下一阶段授权。
 
 所有项目文件在 week03/homework/comeet，未改其他作业。Web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.3.8、React Router 7.18.5、Zustand 5.0.8；Go 1.25.3、chi 5.2.3、jwt/v5 5.3.0、x/crypto 0.43.0、modernc SQLite 1.39.1。精确依赖以锁文件为准。
 
@@ -12,10 +12,14 @@ web/services：类型、fetch、认证失效与请求；stores/auth：Zustand �
 
 Go testing/httptest 使用临时真实 SQLite，覆盖认证/对象权限/竞争/重开数据库；race 在 Linux 验证，Windows 编译不依赖 CGO。Playwright 真正请求 Go，创建 e2e/ui 前缀测试账号及会议，不能当成正常链路种子或推荐人工固定登录。Pages 产物本地 Hash 路由检查不等同公网发布。结果见 docs/阶段验收.md；Windows 具体命令在 README 和手工测试中。
 
-当前已有 WS/成员/持久聊天/离会/重连，没有媒体、会控/结束、AI。测试 fixtures 可设置 ended/ending/ban/member 来测权限，不代表运行中实现了后续业务。无 Key 时不声称第三方真实联调通过。
+当前已有 WS/成员/持久聊天/离会/重连，第四阶段已有媒体代码，未开发会控/结束、AI。测试 fixtures 可设置 ended/ending/ban/member 来测权限，不代表运行中实现了后续业务。无 Key 时不声称第三方真实联调通过。
 
 不再加宣传标语或英文眉题，保留功能标题与必要状态。全部阶段完成后清理 UI 阶段编号、骨架/预览文字和临时导航，保留真实权限、配置、错误和 AI 来源提示；阶段历史文档保留。最终只将 comeet 文件夹放进学校仓库指定位置，不附带 week03/homework 或源仓库外壳、不改其他作业。见 docs/交付检查.md。
 
-源码 stage3-review，第一阶段 stage1-review 保留；此前授权的本仓库源码与测试站 push 用于本阶段交付，学校仓库操作仍按最终指定目标执行。
+源码 stage4-review，第一阶段 stage1-review 保留；此前授权的本仓库源码与测试站 push 用于本阶段交付，学校仓库操作仍按最终指定目标执行。
 
 第三阶段 internal/realtime 管理一次性票据、连接 generation、成员/聊天事务和重启恢复；单读/单写、有界发送队列，网络等待不持有全局锁。45 秒恢复宽限不因重试/重启反复延长；旧连接回调不能删除新连接。前端 room.ts 按 epoch 丢弃旧回调，先订阅快照高水位再分页补拉，消息原 ID 重试。详细协议见 API，实际检查见阶段验收。
+
+第四阶段新增realtime/media.go及在线会话媒体授权，使用已有jwt/v5按官方LiveKit字段签名。客户端锁定livekit-client2.23.0。设备准备用独立gUM、代次取消迟到结果；进入前停止准备轨道，SDK重新采集。MediaClient以当前参会sessionId为唯一身份，StrictMode延迟启动、终止标记、串行断开、有限监听和detach清理；音视频错误不终止业务WS。deviceTools负责AnalyserNode与试听AudioContext释放。
+
+真实媒体自动测试单独test:media；普通test:e2e不要求第三方Key，错误分支测试有明确故障注入。当前云Chromium策略禁止非代理WebRTC UDP，真实媒体传输待验证；不能写音视频已联调通过或绕过组织策略。物理设备/Cloud/跨网络验收待用户，第四阶段完成后停止。

@@ -33,7 +33,7 @@ function StaticDashboard() {
           href={`${import.meta.env.BASE_URL}comeet-source.zip`}
           download
         >
-          下载第三阶段源码 ZIP
+          下载第四阶段源码 ZIP
         </a>
         <Link className="text-button" to="/meetings/preview/room">
           会议室界面预览

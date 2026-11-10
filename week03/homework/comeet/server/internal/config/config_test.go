@@ -75,3 +75,33 @@ func TestPrivateKeyInitialization(t *testing.T) {
 		t.Fatal("product capacity limit exceeded")
 	}
 }
+
+func TestMediaConfigurationValidation(t *testing.T) {
+	c := Config{Env: "development", LivekitAPI: "https://project.livekit.cloud", LivekitWS: "wss://project.livekit.cloud", LivekitKey: "key", LivekitSecret: "secret"}
+	if !c.MediaConfigured() {
+		t.Fatal("cloud config rejected")
+	}
+	c.LivekitWS = "ws://public.example.test"
+	if c.MediaConfigured() {
+		t.Fatal("insecure public media allowed")
+	}
+	c.LivekitAPI = "http://localhost:7880"
+	c.LivekitWS = "ws://localhost:7880"
+	if !c.MediaConfigured() {
+		t.Fatal("local development rejected")
+	}
+	c.Env = "production"
+	if c.MediaConfigured() {
+		t.Fatal("cleartext production allowed")
+	}
+	c.Env = "development"
+	c.LivekitWS = "ws://localhost:7880?secret=bad"
+	if c.MediaConfigured() {
+		t.Fatal("query credentials allowed")
+	}
+	c.LivekitWS = "ws://localhost:7880"
+	c.LivekitSecret = ""
+	if c.MediaConfigured() {
+		t.Fatal("partial config allowed")
+	}
+}

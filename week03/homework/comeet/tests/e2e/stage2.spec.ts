@@ -151,7 +151,9 @@ test("create, database-backed list, refresh and host detail", async ({
   await expect(
     page.locator("strong").filter({ hasText: /\d{3}-\d{3}-\d{3}/ }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: /进入会议/ })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "进入会议", exact: true }),
+  ).toBeEnabled();
   await page.getByRole("link", { name: "返回工作台" }).click();
   const row = page.locator(".meeting-row").filter({ hasText: title });
   await expect(row).toBeVisible();
@@ -247,7 +249,7 @@ test("real health after migration and retry", async ({ page, request }) => {
   const r = await request.get("/api/v1/health/ready");
   const d = (await r.json()).data;
   expect(d.schemaVersion).toBe("003_realtime_chat.sql");
-  expect(d.stage).toBe(3);
-  expect(d.mediaConfigured).toBe(false);
+  expect(d.stage).toBe(4);
+  expect(typeof d.mediaConfigured).toBe("boolean");
   expect(d.aiConfigured).toBe(false);
 });

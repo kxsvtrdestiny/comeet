@@ -81,7 +81,7 @@ export default function App() {
               </NavLink>
             </nav>
             <div className="sidebar-bottom">
-              <span className="tag">阶段 03 / 08</span>
+              <span className="tag">阶段 04 / 08</span>
             </div>
           </aside>
           <div className="workspace">

@@ -1,11 +1,11 @@
-# 当前已实现 API · 第三阶段
+# 当前已实现 API · 第四阶段
 
 统一前缀 /api/v1；响应 `{code,message,data,requestId}`，错误 data=null。鉴权用 `Authorization: Bearer <JWT>`，不把长期 JWT 放 URL。请求体最大 1MiB，未知 JSON 字段和多个对象被拒绝。时间为 UTC Unix 毫秒，JWT 标准时间字段按协议为秒。
 
 | 方法 / 路径 | 权限与实际行为 |
 |---|---|
 | GET /health/live | 公开；进程存活 |
-| GET /health/ready | 公开；实际查询迁移，stage=3、schemaVersion=003_realtime_chat.sql；DB 故障 503，可选媒体/AI 未配置不影响 200 |
+| GET /health/ready | 公开；实际查询迁移，stage=4、schemaVersion=003_realtime_chat.sql；DB 故障 503，可选媒体/AI 未配置不影响 200 |
 | POST /auth/register | 公开；username/displayName/password；201 返回 user，不自动登录 |
 | POST /auth/login | 公开；username/password；200 返回 token/expiresAt/user |
 | POST /auth/logout | 当前身份；撤销当前 sid，释放预留并关闭其在线业务连接；200 data=null |
@@ -68,4 +68,12 @@ room.snapshot 含 meeting/members/sessionId/generation/latestMessageId。先注�
 
 启动把旧 online 标为 reconnecting；保留原已断线起点，清理过期会话并结束区间。正常退出保留恢复机会，不结束会议。generation 和连接指针保护旧连接回调，防止误删新连接；原会话恢复不新增参会区间。消息及区间持久化在003迁移，票据不持久化，重启须申请新票据。
 
-没有实现媒体 token、音视频、共享、会控/结束会议、笔记或 AI。不记录密码、JWT、票据、恢复凭证和聊天正文日志。测试 fixture 不进入正常数据链路。
+第四阶段实现媒体 token/音视频，未实现共享、会控/结束会议、笔记或 AI。不记录密码、JWT、票据、恢复凭证和聊天正文日志。测试 fixture 不进入正常数据链路。
+
+## 第四阶段媒体接口
+
+GET /api/v1/media/config：已登录可读，返回 `{configured:boolean}`，不返回Key/Secret。形式完整不是服务探活。
+
+POST /api/v1/meetings/:id/media-token：Bearer JWT，输入仅 `{sessionId}`。检查该会话归属当前user/sid/会议、会议active、未封禁、真实online及活动peer/generation，未正式入会返回409 BUSINESS_NOT_CONNECTED；缺配置503 MEDIA_NOT_CONFIGURED，文字业务不受影响。成功返回 `{url,token,expiresAt,identity,room}` 并Cache-Control:no-store；服务端不记录token。
+
+JWT HS256，iss=LiveKit API Key，sub=参会sessionId，name/metadata取服务端；video grant仅roomJoin、指定内部会议room、camera/microphone发布和订阅。canPublishData/canUpdateOwnMetadata=false，无roomAdmin/共享/建房权限。TTL最大5分钟且受请求JWT/库内登录期限约束。具体授权有效期及已建立连接边界见LiveKit.md。第四阶段不调用管理API，不声称token过期会自动踢出现有连接。

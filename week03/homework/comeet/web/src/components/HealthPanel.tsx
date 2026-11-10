@@ -5,7 +5,7 @@ export default function HealthPanel() {
   if (import.meta.env.MODE === "pages")
     return (
       <section className="card health" aria-label="静态预览说明">
-        <h2>第三阶段 · 静态界面预览</h2>
+        <h2>第四阶段 · 静态界面预览</h2>
         <p>此测试站仅展示界面，不运行 Go 和 SQLite，尚未连接业务服务。</p>
         <p className="muted">
           数据库健康检查需在 Windows 按 README
@@ -16,7 +16,7 @@ export default function HealthPanel() {
           href={`${import.meta.env.BASE_URL}comeet-source.zip`}
           download
         >
-          下载第三阶段源码 ZIP
+          下载第四阶段源码 ZIP
         </a>
       </section>
     );

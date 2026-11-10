@@ -74,6 +74,19 @@ func Load(envFile string) (Config, error) {
 	return c, nil
 }
 func (c Config) MediaConfigured() bool {
-	return c.LivekitAPI != "" && c.LivekitWS != "" && c.LivekitKey != "" && c.LivekitSecret != ""
+	if c.LivekitKey == "" || c.LivekitSecret == "" {
+		return false
+	}
+	api, a := url.Parse(c.LivekitAPI)
+	ws, b := url.Parse(c.LivekitWS)
+	if a != nil || b != nil || api.Host == "" || ws.Host == "" || api.User != nil || ws.User != nil || api.RawQuery != "" || ws.RawQuery != "" || api.Fragment != "" || ws.Fragment != "" {
+		return false
+	}
+	if api.Scheme == "https" && ws.Scheme == "wss" {
+		return true
+	}
+	// Cleartext is only for explicitly local development, never arbitrary LAN/public hosts.
+	local := func(h string) bool { return h == "localhost" || h == "127.0.0.1" || h == "::1" }
+	return c.Env == "development" && api.Scheme == "http" && ws.Scheme == "ws" && local(api.Hostname()) && local(ws.Hostname())
 }
 func (c Config) AIConfigured() bool { return c.AIEnabled && c.AIKey != "" && c.AIModel != "" }

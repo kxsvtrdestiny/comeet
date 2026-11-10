@@ -972,3 +972,90 @@ main {
     padding: 16px;
   }
 }
+
+/* Media shares the existing visual system. */
+.preview video {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: 12px;
+  transform: scaleX(-1);
+}
+.device-controls > div,
+.device-controls > label {
+  margin-bottom: 12px;
+}
+.device-controls .button {
+  margin-top: 14px;
+}
+.device-controls .error {
+  margin-top: 8px;
+}
+.mic-level {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+.mic-level meter {
+  width: 100%;
+  max-width: 200px;
+}
+.room .member-tile {
+  overflow: hidden;
+  position: relative;
+}
+.member-tile video {
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #111722;
+}
+.member-tile .local-video {
+  transform: scaleX(-1);
+}
+.member-grid {
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+}
+.media-status {
+  color: #a8bacf;
+  margin: 0 32px 14px;
+}
+.room-media-settings {
+  margin-bottom: 12px;
+  color: #c7d2e4;
+}
+.room-media-settings summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.media-controls {
+  padding: 8px 0;
+  font-size: 13px;
+}
+.media-controls select {
+  background: #222c3e;
+  color: #eef2ff;
+  border-color: #3d4960;
+  padding: 8px;
+}
+.media-controls label {
+  display: block;
+  margin: 10px 0;
+}
+.media-controls .error {
+  color: #ffb3b3;
+}
+.audio-subscriptions {
+  display: none;
+}
+@media (max-width: 600px) {
+  .member-tile video {
+    height: 180px;
+  }
+  .media-status {
+    margin: 0 18px 10px;
+  }
+}

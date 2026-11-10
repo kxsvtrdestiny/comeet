@@ -1,47 +1,54 @@
-# Comeet · 第三阶段
+# Comeet · 第四阶段
 
-前两阶段已由用户明确验收通过。本次只完成第三阶段：WebSocket 成员、持久聊天、离会与业务重连；等待第三阶段人工验收。**不含音视频、共享或 AI。** 界面沿用已验收样式，未加入宣传标语。
+前三阶段已由用户明确人工验收通过。第四阶段代码实现 LiveKit token、设备准备和音视频发布/订阅，等待用户验收；真实设备、跨网络音视频待验证。未开发屏幕共享、主持人媒体会控或 DeepSeek。
 
-源码位于仓库的 `week03/homework/comeet`。第三阶段源码分支为 `stage3-review`；第一阶段分支保留。最终交付学校仓库时只放 **comeet 文件夹**，不带当前仓库外层目录、不改变其他作业，详见 docs/交付检查.md。
+源码分支 stage4-review，项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
 
-## Windows 更新已有项目
+## Windows 更新源码
 
-以下命令按用户当前目录 **D:\comeet-stage1-review\week03\homework\comeet** 编写。如果实际解压目录不同，应替换路径；stage1-review 这个本机文件夹名不影响程序版本。
+先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage4-review.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有003迁移保留，本阶段无需清库或运行新SQL。
 
-1. 在原前端、后端两个终端分别按 Ctrl+C 停止。
-2. 下载 stage3-review 源码 ZIP，全部解压。打开新版的 week03/homework/comeet，将其文件复制到上述旧项目位置，替换同名源码。**不要先清空旧目录；保留 server/.env 和 server/data。** 不复制 node_modules/dist 等旧依赖产物到新版。
-3. 按下列终端 A/B 命令运行。新迁移 003_realtime_chat.sql 自动执行，不删除既有数据库，不需要手动运行 SQL。
+以下命令按用户现有目录 `D:\comeet-stage1-review\week03\homework\comeet` 编写；文件夹名带 stage1 不影响代码版本。若换了解压位置，替换命令路径即可。Pages 独立源码 ZIP 只含 comeet 文件夹。
 
-下载地址：https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage3-review.zip
+工具：Node.js24（验证24.22.1/npm11.9.0）、Go1.25.3；SQLite纯Go，无需CGO、SQLite CLI或Docker。Web新增精确锁定 livekit-client2.23.0，其余版本见锁文件。
 
-GitHub 源码 ZIP 保留仓库的 week03/homework/comeet 路径；Pages 提供的独立源码包只含 comeet 文件夹。两种情况都将 comeet 内部文件更新到既有目录，保留 .env/data。
+## 获取与填写 LiveKit（只在你本机操作）
 
-## 工具版本
-
-Windows 安装 Node.js 24（本次验证 24.22.1，npm 11.9.0）与 Go 1.25.3。新开 PowerShell 检查 `node --version`、`go version`。SQLite 使用纯 Go modernc 驱动，无需 SQLite CLI、CGO、Docker、LiveKit 或 DeepSeek Key。
-
-Web：React/ReactDOM 19.2.0、React Router 7.18.5、Vite 7.3.8、TypeScript 5.9.3、Zustand 5.0.8、Lucide 0.548.0。后端版本由 go.mod/go.sum 锁定，包括 jwt/v5 5.3.0、x/crypto 0.43.0 的 bcrypt。依赖审计结果见阶段验收记录，不能用旧截图代替当前结果。
-
-## 终端 A：后端（PowerShell，保持开启）
+1. 在 https://cloud.livekit.io/ 注册/登录，创建项目。
+2. 在项目设置/API Keys中获取项目服务URL、API Key和API Secret。界面名称可能调整，以控制台为准；额度与费用由自己的服务账户决定。
+3. 在**后端目录**用记事本打开配置：
 
 ```powershell
 cd D:\comeet-stage1-review\week03\homework\comeet\server
-# 中国大陆网络访问默认 Go 下载源超时时，仅对本窗口切换；保持校验开启
+notepad .env
+```
+
+保留已有 JWT_SECRET 等内容，找到并填写以下四行（通常同一主机名，分别使用https和wss，以控制台地址为准）：
+
+```dotenv
+LIVEKIT_API_URL=https://你的项目.livekit.cloud
+LIVEKIT_WS_URL=wss://你的项目.livekit.cloud
+LIVEKIT_API_KEY=控制台的API_Key
+LIVEKIT_API_SECRET=控制台的API_Secret
+```
+
+保存并重启后端。**不要发密钥到聊天、截图或GitHub，不填web/.env，也不添加VITE_密钥变量。** .env.example只是模板，不在模板里填写真实秘密。浏览器只得到短期媒体token和可达的WS地址。
+
+没有配置或配置不完整时，Go仍能启动，设备预览仍可检测，文字会议和聊天继续工作；准备页/会议室会明确提示媒体未配置。服务状态“已配置”仅代表配置形式完整，不表示网络/密钥已联通。私有部署及可选本机LiveKit步骤见 docs/LiveKit.md。
+
+## 终端 A：后端 PowerShell（保持开启）
+
+```powershell
+cd D:\comeet-stage1-review\week03\homework\comeet\server
 $env:GOPROXY = "https://goproxy.cn,direct"
 go mod download
-# 自动从 .env.example 创建缺失的 .env，并仅为缺失/空 JWT_SECRET 生成私有随机密钥
-# 若已有合格密钥则保留，不会重新生成，不会在输出中显示密钥
 go run ./cmd/server -env-file .env -init-env
 go run ./cmd/server -env-file .env
 ```
 
-看到 `server_start` 且 stage 为 3，保持终端运行。地址为 127.0.0.1:8080。不要把生成的 .env 上传或复制给别人。密钥一经生成需保留，重启更换密钥会使已有 JWT 失效。`-init-env` 检测到已有非空但不足 32 字节的密钥时会报错，不会擅自覆盖，需要用户自行更换合格私有密钥。
+`-init-env`仅创建缺失文件/空JWT密钥，保留已有合格密钥及其他配置，不会打印秘密。看到server_start、stage=4后保持终端运行。后续启动通常只执行最后一行。显式-env-file才读文件，系统环境优先；不要旋转JWT_SECRET或删除data。
 
-显式 `-env-file .env` 才加载文件，进程系统环境优先；生产只读系统环境，不自动读取 .env。缺少有效 JWT_SECRET（32+ 字节）时启动会给出初始化提示，不能用仓库中的公开默认密钥。可选媒体/AI 未配置不阻止本阶段运行。
-
-首次使用也执行上述相同步骤。后续一般只需在 server 目录执行最后一条启动命令，不用重复生成密钥；有依赖变化才重新下载。
-
-## 终端 B：前端（另开 PowerShell，保持开启）
+## 终端 B：前端 PowerShell（另开，保持开启）
 
 ```powershell
 cd D:\comeet-stage1-review\week03\homework\comeet\web
@@ -49,64 +56,56 @@ npm.cmd ci
 npm.cmd run dev
 ```
 
-npm ci 完成后才执行启动命令。若下载停滞可用 `npm.cmd ci --verbose` 查看原因，不执行 npm audit fix --force。5173 严格固定；端口占用应先停止自己之前的服务。
+等npm ci完成再启动，不执行npm audit fix --force。浏览器访问 **http://localhost:5173**，不要混用127.0.0.1（Origin白名单必须匹配）。只要在localhost就可采集设备；普通HTTP局域网IP不保证安全上下文，跨电脑测试需要正确HTTPS配置。
 
-浏览器打开 **http://localhost:5173**。未登录应转到 `/login`。首次去 `/register` 自己注册账号，无内置账号、默认密码或演示会议。成功后登录，工作台按当前用户从 SQLite 加载真实会议。
+A使用Chrome，B使用Edge或独立隐私窗口，各自登录。两端戴耳机，避免同房间扬声器啸叫。A创建会议，B按同一个9位会议号加入。
 
-用 Chrome 普通窗口注册账号 A，再用 Edge 或独立隐私窗口注册账号 B；不能把同浏览器同会话的两个普通标签当作独立账号环境。密码至少 8 个字符，UTF-8 不超过 72 字节。
+## 本阶段操作
 
-## 本阶段如何操作
+- 准备页默认不采集。分别点开启麦克风/摄像头，独立授权，可选择设备，摄像头预览不发布。说话观察电平，点击扬声器试听播放约1.5秒音调，也可停止。设备标签授权前可能为空。
+- 开关/设备选择相互独立；拒绝或缺设备不阻止“仅聊天参会”。关闭设备不会自动重新打开，设备断开后提示更换，不主动采集替代设备。
+- 点击进入时先停止准备页采集，再由会议室按已选开关创建一套SDK轨道；仅聊天入口关闭两项采集意图。
+- 正式业务入会后申请短期媒体token，连接LiveKit；分别显示业务和媒体状态。宫格按真实业务成员显示，摄像头/麦克风状态来自SDK轨道事件。
+- 会议底部独立开关麦克风/摄像头；右侧“音视频设置”可切换设备、查看电平和重试媒体。浏览器阻止声音时点“点击启用声音”。本地视频始终静音，远端每条麦克风只挂载一个音频元素。
+- 业务短暂重连不会重复连接媒体；媒体故障不关闭业务聊天。45秒业务恢复到期/登录失效会停止媒体。SDK自身媒体重连失败可手动重试。
+- 离会按钮、返回工作台、路由跳转、登录失效、关闭/刷新页面会释放媒体；正常页面浏览器返回后若从缓存恢复会议页，会刷新验证会话。离会不等于结束整场会议。
+- 未开发共享/会控/AI，相关按钮仍禁用。工作台不展示开发诊断，左侧设置可读真实服务状态。
 
-A 创建会议后进入准备页，点击“进入会议”；B 用自己的账号查询同一个 9 位会议号，点击进入。准备页本身不占席位，WebSocket 正式入会后才记录成员和参会区间。会议室支持真实成员列表、主持人/本人标识、双向纯文字聊天、历史加载、原消息重试和主动离会。
-
-短暂掉线显示重连状态，45 秒宽限内自动申请新票据恢复同一参会区间并分页补齐消息；超过宽限后停止，按页面提示重新加入。复制同一会话的标签不会顶掉原健康连接。主持人个人离开不结束会议。账号退出会撤销当前登录，并关闭其业务连接。
-
-工作台不再显示开发诊断，需查看时进入左侧“设置 → 服务状态”。麦克风、摄像头、共享仍禁用，本阶段无需任何媒体/AI Key，也不会申请设备权限。
-
-## 停止与重启
-
-两个终端分别 Ctrl+C。重启时终端 A 在 server 目录执行 `go run ./cmd/server -env-file .env`，终端 B 在 web 目录执行 `npm.cmd run dev`，浏览器刷新。保留 .env 和 data；正常重启不会删除用户、会议、聊天或未过期登录会话。测试业务恢复时只重启终端 A，保持 B 和浏览器开启，在 45 秒内恢复后端；不要更换密钥、清数据库或重启前端。超过恢复宽限则手动重新加入。尚未正式入会的预留只有 60 秒。
-
-## 终端 C：可执行检查（PowerShell）
-
-保持 A/B 服务运行，另开终端：
+## 终端 C：自动检查（另开 PowerShell）
 
 ```powershell
 cd D:\comeet-stage1-review\week03\homework\comeet\server
 go test -count=1 ./...
 go vet ./...
 go mod verify
-go build -o .\data\comeet.exe ./cmd/server
-
 cd D:\comeet-stage1-review\week03\homework\comeet\web
 npm.cmd run typecheck
 npm.cmd run build
 npm.cmd audit
-# 可选真实浏览器回归，会在当前数据库创建名称带 e2e/ui 前缀的测试账号和会议
-npx.cmd playwright install chromium
-npm.cmd run test:e2e
 ```
 
-Go 接口测试自己创建临时数据库，不使用用户运行数据；不需要服务 A/B。Playwright 则需要 A/B 运行并真正请求其 API，不使用 mock 账号或假会议。Windows 未安装 C 编译器时无需强行运行 race；Linux 云端实际 race 结果见记录。
+Go测试用临时SQLite，不改运行数据。Windows不要求安装C编译器跑race；云端Linux结果另记。可选浏览器检查会创建真实测试账号/会议，须保持A/B服务运行：
 
-## GitHub Pages 与本机区别
+```powershell
+cd D:\comeet-stage1-review\week03\homework\comeet\web
+npx.cmd playwright install chromium
+npm.cmd run test:e2e
+# 仅当LiveKit配置完整、浏览器媒体网络可达时执行真实媒体检查
+npm.cmd run test:media
+```
 
-https://kxsvtrdestiny.github.io/comeet/#/ 仅为静态界面预览，无法运行 Go/SQLite。静态页面禁用账号提交和创建能力，明确未连接后端，不展示假 health 或假会议。**第三阶段账号、权限、持久化必须在 localhost 的完整前后端上验收，不能在 Pages 上验收登录。** Pages 是否实际完成公网部署以用户浏览器为准；本云环境对 github.io/管理 API 有访问限制。
+test:e2e覆盖前三阶段与设备错误分支，媒体token缺配置的测试通过测试内故障注入稳定验证；test:media单独连接真实LiveKit，浏览器使用虚拟设备，不代表物理听感或跨网络验收。当前云Chromium策略禁止非代理WebRTC UDP，本次真实媒体传输未打通，详见阶段验收。
 
-web 目录的 `npm.cmd run build:pages` 使用 HashRouter 与 /comeet/ 资源前缀。普通 `npm.cmd run build` 保持 BrowserRouter。云端内网开发可用 `npm run dev:cloud`，这不是生产托管或公网部署。
+## 停止、重启与排障
 
-## 常见问题
+终端A/B分别Ctrl+C停止。只重启后端时，在终端A的server目录执行 `go run ./cmd/server -env-file .env`，保持前端和浏览器；业务45秒内可恢复，媒体状态单独观察。不改.env/data。修改LiveKit配置后需要重启后端，会议室的音视频设置可重试媒体连接。
 
-- JWT_SECRET 报错：在终端 A 执行上面的 -init-env 命令，不要直接复制别人的密钥；已有有效值不会旋转。
-- health 失败：确认终端 A 保持开启，访问 http://localhost:8080/api/v1/health/ready。预期 schemaVersion 为 003_realtime_chat.sql。
-- 注册重复用户名：大小写规范化后仍唯一；换名字或用原账号登录。
-- 登录错误统一提示用户名或密码错误；不会说明账号是否存在。
-- 详情 FORBIDDEN：当前账号既不是主持人，也没有正式参会记录；仅查询会议号只能看准备信息，正式入会后才有成员及聊天读取权限。
-- ALREADY_JOINED / MEETING_FULL / SESSION_EXPIRED：预留接口的重复会话、容量或过期保护；不应通过清空数据库来“修好”。
-- 429：账号和会议号查询有基础限流，稍后重试；不盲信 X-Forwarded-For。
-- 网络下载失败：检查 Go/NPM 的下载源与本机网络，不关闭 TLS、GOSUMDB 或锁文件校验。
-- 页面像旧版本：确认已覆盖新版 web/src、web/package.json 和 package-lock.json，停止前端后 npm.cmd ci，再启动并 Ctrl+F5。
+- 媒体未配置：检查server/.env四项、地址协议和是否重启后端；配置不完整/非安全公网地址会视为未配置。
+- 媒体失败：检查项目URL、密钥是否同一项目、电脑网络/VPN/防火墙、LiveKit控制台连接记录。先保证文字连接成功；健康检查不测试LiveKit可达性。
+- 权限拒绝：浏览器地址栏站点设置→允许麦克风/摄像头，然后点击重试开启。Windows设置→隐私和安全性→摄像头/麦克风也需允许桌面应用。
+- 设备占用/缺失：关闭占用程序或连接设备，刷新列表/更换设备，或仅聊天。
+- 听不到：点启用声音、检查系统输出/浏览器是否静音、对方是否开麦；只有支持setSinkId的浏览器提供扬声器切换，不支持时用系统默认。
+- 新源码未生效：确认覆盖src及package-lock.json，停止前端，npm.cmd ci后重启，浏览器Ctrl+F5。
+- Pages https://kxsvtrdestiny.github.io/comeet/#/ 只作静态界面预览，不运行Go、SQLite、业务WS或LiveKit，必须本机验收。
 
-报错请提供终端 A/B/C 中哪一个、当前目录、执行命令、错误输出和访问路径。不要包含 .env、Key、密码或 JWT/token。
-
-详细 API、阶段结果及 8 项人工检查分别见 docs/API.md、docs/阶段验收.md、docs/手工测试.md。只完成第三阶段，用户验收通过前不进入第四阶段。
+具体双账号清单见 docs/手工测试.md。**第四阶段完成后停止，等待用户人工验收，不进入第五阶段。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。

@@ -32,6 +32,7 @@ interface Stored {
   cursor?: number;
 }
 export interface RoomState {
+  sessionId?: string;
   status:
     | "connecting"
     | "syncing"
@@ -248,6 +249,7 @@ export class RoomClient {
   }
   private receive(event: Frame, epoch: number) {
     if (event.type === "room.snapshot") {
+      this.state.sessionId = this.record.sessionId;
       const p = event.payload as {
         meeting: Meeting;
         members: Member[];
@@ -376,7 +378,7 @@ export class RoomClient {
       this.lastCode = "";
       this.record.cursor = this.cursor;
       this.save();
-      this.emit({ status: "connected", notice: "业务已连接 · 仅文字会议" });
+      this.emit({ status: "connected", notice: "业务已连接" });
     } catch (e) {
       if (
         this.stopped ||
@@ -533,6 +535,7 @@ export class RoomClient {
   }
   async rejoin() {
     if (this.state.conflict) return;
+    this.emit({ sessionId: undefined });
     this.epoch++;
     this.abort?.abort();
     this.ws?.close();

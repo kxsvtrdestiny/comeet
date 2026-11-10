@@ -9,6 +9,13 @@ import {
   LogOut,
 } from "lucide-react";
 import { Disabled } from "../components/Common";
+import {
+  useMedia,
+  MemberMedia,
+  AudioSubscriptions,
+  MediaControls,
+} from "../components/MediaRoom";
+import { Track } from "livekit-client";
 import { RoomClient, type RoomState } from "../services/room";
 import { staticPreview, formatMeetingNo } from "../services/types";
 import { useAuth } from "../stores/auth";
@@ -52,6 +59,11 @@ function LiveRoom() {
     [draft, setDraft] = useState(""),
     [error, setError] = useState(""),
     [leaving, setLeaving] = useState(false);
+  const media = useMedia(
+    id,
+    state.sessionId,
+    state.status === "error" || state.status === "left" || leaving,
+  );
   const log = useRef<HTMLDivElement | null>(null);
   const stickToBottom = useRef(true);
   useEffect(() => {
@@ -71,6 +83,7 @@ function LiveRoom() {
   }, [state.messages.length, panel]);
   async function leave() {
     if (leaving) return;
+    media.stop();
     setLeaving(true);
     const notice = await client.current?.leave();
     nav("/", { replace: true, state: { leaveNotice: notice || "" } });
@@ -94,7 +107,11 @@ function LiveRoom() {
           {state.meeting && (
             <p>会议号：{formatMeetingNo(state.meeting.meetingNo)}</p>
           )}
-          <p role="status" className={`connection-status ${state.status}`}>
+          <p
+            role="status"
+            aria-label="业务连接"
+            className={`connection-status ${state.status}`}
+          >
             {state.notice}
           </p>
         </div>
@@ -119,25 +136,48 @@ function LiveRoom() {
           )}
         </section>
       )}
+      <p role="status" aria-label="媒体连接" className="media-status">
+        {media.state.notice}
+      </p>
+      <AudioSubscriptions state={media.state} />
       <div className="room-body">
         <section className="room-stage" aria-label="参会成员">
           <div className="member-grid">
-            {state.members.map((m) => (
-              <article className="member-tile" key={m.sessionId}>
-                <div className="avatar">{m.displayName.slice(0, 1)}</div>
-                <h2>{m.displayName}</h2>
-                <div className="member-badges">
-                  {m.userId === session?.user.id && (
-                    <span className="tag">本人</span>
+            {state.members.map((m) => {
+              const local = m.sessionId === state.sessionId;
+              const participant = local
+                ? media.state.room?.localParticipant
+                : media.state.room?.remoteParticipants.get(m.sessionId);
+              const video = participant?.getTrackPublication(
+                Track.Source.Camera,
+              );
+              const mic = participant?.getTrackPublication(
+                Track.Source.Microphone,
+              );
+              return (
+                <article className="member-tile" key={m.sessionId}>
+                  <MemberMedia participant={participant} local={local} />
+                  {(!video?.track || video.isMuted) && (
+                    <div className="avatar">{m.displayName.slice(0, 1)}</div>
                   )}
-                  {m.isHost && <span className="tag">主持人</span>}
-                  <span className="tag">
-                    {m.state === "online" ? "在线" : "重连中"}
-                  </span>
-                </div>
-                <p>仅文字参会</p>
-              </article>
-            ))}
+                  <h2>{m.displayName}</h2>
+                  <div className="member-badges">
+                    {m.userId === session?.user.id && (
+                      <span className="tag">本人</span>
+                    )}
+                    {m.isHost && <span className="tag">主持人</span>}
+                    <span className="tag">
+                      {m.state === "online" ? "在线" : "重连中"}
+                    </span>
+                  </div>
+                  <p>
+                    {participant
+                      ? `${mic?.track && !mic.isMuted ? "麦克风开启" : "麦克风关闭"} · ${video?.track && !video.isMuted ? "摄像头开启" : "摄像头关闭"}`
+                      : "仅文字参会"}
+                  </p>
+                </article>
+              );
+            })}
           </div>
           {!state.members.length && (
             <>
@@ -149,6 +189,23 @@ function LiveRoom() {
           )}
         </section>
         <aside className="room-panel">
+          <details className="room-media-settings">
+            <summary>音视频设置</summary>
+            <MediaControls
+              state={media.state}
+              client={media.client}
+              retry={media.retry}
+            />
+          </details>
+          {media.state.playbackBlocked &&
+            media.state.status === "connected" && (
+              <button
+                className="button"
+                onClick={() => void media.client?.startAudio()}
+              >
+                点击启用声音
+              </button>
+            )}
           <div className="tabs">
             <button
               onClick={() => setPanel("members")}
@@ -283,14 +340,26 @@ function LiveRoom() {
         </aside>
       </div>
       <footer className="toolbar">
-        <Disabled stage={4}>
+        <button
+          className="text-button"
+          disabled={media.state.status !== "connected" || media.state.busy}
+          onClick={() =>
+            void media.client?.toggle("microphone", !media.state.microphone)
+          }
+        >
           <MicOff size={18} />
-          麦克风
-        </Disabled>
-        <Disabled stage={4}>
+          {media.state.microphone ? "关闭麦克风" : "开启麦克风"}
+        </button>
+        <button
+          className="text-button"
+          disabled={media.state.status !== "connected" || media.state.busy}
+          onClick={() =>
+            void media.client?.toggle("camera", !media.state.camera)
+          }
+        >
           <VideoOff size={18} />
-          摄像头
-        </Disabled>
+          {media.state.camera ? "关闭摄像头" : "开启摄像头"}
+        </button>
         <Disabled stage={5}>
           <Monitor size={18} />
           共享屏幕

@@ -1,6 +1,6 @@
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, VideoOff } from "lucide-react";
-import { Disabled } from "../components/Common";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import DevicePrepare from "../components/DevicePrepare";
 import { useRemote } from "../services/useRemote";
 import {
   staticPreview,
@@ -9,6 +9,10 @@ import {
 } from "../services/types";
 export default function Prepare() {
   const { id } = useParams();
+  const nav = useNavigate();
+  const media = useRemote<{ configured: boolean }>(
+    staticPreview ? null : "/media/config",
+  );
   const { data, loading, error, retry } = useRemote<Preparation>(
     staticPreview ? null : `/meetings/${encodeURIComponent(id || "")}/prepare`,
   );
@@ -42,43 +46,19 @@ export default function Prepare() {
           </section>
         )
       )}
-      {(staticPreview || data) && (
-        <div className="prepare-grid">
-          <div className="preview">
-            <VideoOff size={40} />
-            <h2>尚未启用设备预览</h2>
-            <p>第 4 阶段接入设备；当前不会申请摄像头或麦克风权限。</p>
-          </div>
-          <section className="card">
-            <h2>设备准备</h2>
-            <label>
-              麦克风
-              <select disabled>
-                <option>第 4 阶段开放设备选择</option>
-              </select>
-            </label>
-            <label>
-              摄像头
-              <select disabled>
-                <option>第 4 阶段开放设备选择</option>
-              </select>
-            </label>
-            <Disabled stage={4}>检测设备</Disabled>
-            <Link
-              className="button"
-              to={`/meetings/${id}/room`}
-              aria-disabled={staticPreview}
-              onClick={(e) => {
-                if (staticPreview) e.preventDefault();
-              }}
-            >
-              进入会议
-            </Link>
-            <p className="muted">
-              点击进入后才预留席位并正式入会。仅浏览准备页不会产生参会记录。
-            </p>
-          </section>
-        </div>
+      {staticPreview ? (
+        <p className="muted">设备预览和音视频请在本机运行后测试。</p>
+      ) : (
+        data && (
+          <>
+            {media.data && !media.data.configured && (
+              <p className="subtitle">
+                媒体未配置，可预览设备或仅聊天参会；配置方法见 README。
+              </p>
+            )}
+            <DevicePrepare onEnter={() => nav(`/meetings/${id}/room`)} />
+          </>
+        )
       )}
     </>
   );

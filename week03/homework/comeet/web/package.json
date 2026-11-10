@@ -9,9 +9,11 @@
     "build": "tsc --noEmit && vite build",
     "test:e2e": "playwright test",
     "dev:cloud": "vite --host 0.0.0.0",
-    "build:pages": "tsc --noEmit && vite build --mode pages --base=/comeet/ --outDir ../artifacts/pages --emptyOutDir"
+    "build:pages": "tsc --noEmit && vite build --mode pages --base=/comeet/ --outDir ../artifacts/pages --emptyOutDir",
+    "test:media": "playwright test --config playwright.media.config.ts"
   },
   "dependencies": {
+    "livekit-client": "2.23.0",
     "lucide-react": "0.548.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",

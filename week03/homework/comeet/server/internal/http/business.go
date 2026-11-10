@@ -209,6 +209,22 @@ func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) 
 			}
 			send(w, r, 200, "OK", "success", v)
 		})
+		private.Get("/api/v1/media/config", func(w http.ResponseWriter, r *http.Request) {
+			send(w, r, 200, "OK", "success", map[string]bool{"configured": c.MediaConfigured()})
+		})
+		private.Post("/api/v1/meetings/{id}/media-token", func(w http.ResponseWriter, r *http.Request) {
+			var in realtime.SessionInput
+			if !decode(w, r, &in) {
+				return
+			}
+			v, e := hub.MediaToken(r.Context(), identity(r), chi.URLParam(r, "id"), in)
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-store")
+			send(w, r, 200, "OK", "success", v)
+		})
 		private.Post("/api/v1/meetings/{id}/resume", func(w http.ResponseWriter, r *http.Request) {
 			var in realtime.ResumeInput
 			if !decode(w, r, &in) {

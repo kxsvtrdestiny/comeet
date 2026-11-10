@@ -20,6 +20,7 @@ export const useAuth = create<AuthState>()(
       setSession: (session) =>
         set({ session, verified: true, notice: "", verificationError: "" }),
       clear: (notice = "") => {
+        sessionStorage.removeItem("comeet.devices.v1");
         for (let i = sessionStorage.length - 1; i >= 0; i--) {
           const key = sessionStorage.key(i);
           if (key?.startsWith("comeet.room.")) sessionStorage.removeItem(key);
