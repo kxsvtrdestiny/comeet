@@ -2,7 +2,7 @@
 
 当前依据为 docs/开发规格-v2.0.md，完整替代此前要求。本阶段只建立工程基础。用户明确验收第 1 阶段通过后才可开发第 2 阶段；报错、截图或“继续修复”均不算下一阶段授权。
 
-目录：web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.1.12、React Router 7.9.5、Lucide 0.548.0；server 使用 Go 1.25.3、chi 5.2.3、godotenv 1.5.1、modernc SQLite 1.39.1。锁定 package-lock.json、go.mod/go.sum，不引入尚未使用的后续依赖。
+目录：web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.3.8、React Router 7.18.5、Lucide 0.548.0；server 使用 Go 1.25.3、chi 5.2.3、godotenv 1.5.1、modernc SQLite 1.39.1。锁定 package-lock.json、go.mod/go.sum，不引入尚未使用的后续依赖。
 
 当前无 AGENTS.md，仓库起始为空。全部项目文件在本作业目录；无需另建 worktree，不修改其他作业。初始化时未执行 commit 或 push；用户随后明确授权推送，现已推送 stage1-review 与 gh-pages，公网状态待用户开启/验证。
 

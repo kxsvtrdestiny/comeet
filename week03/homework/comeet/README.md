@@ -110,3 +110,18 @@ Windows 本机仍使用 `npm run dev`。云环境预览使用 `npm run dev:cloud
 GitHub Pages 无法运行 Go/SQLite，因此静态站不能代替完整第一阶段 Windows 验收。LiveKit、DeepSeek 和账号功能仍未实现。若仓库尚未开启 Pages，请在 GitHub 仓库 Settings → Pages → Build and deployment，选择 Deploy from a branch，分支 gh-pages、目录 /(root)，保存。该操作与源码 push 分开。
 
 源码已推送后可直接下载：https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage1-review.zip 。Pages 开启与访问步骤见 [网页测试](docs/网页测试.md)。
+
+## npm audit 漏洞报告修复（2026-11-10）
+
+旧锁定版本 React Router 7.9.5 / Vite 7.1.12 的审计报告出现 3 个 high。现锁定 react-router-dom 7.18.5、vite 7.3.8，未跨主版本，未使用 --force。当前使用 Node 24.22.1 验证，Vite 要求 Node ^20.19.0 或 >=22.12.0。
+
+Windows 已有旧项目时，在 web 目录停止前端后执行以下命令即可就地修复，后端和数据库不受影响：
+
+```powershell
+npm.cmd install --save-exact react-router-dom@7.18.5
+npm.cmd install --save-dev --save-exact vite@7.3.8
+npm.cmd audit
+npm.cmd run dev
+```
+
+也可用新版 package.json/package-lock.json 替换旧版本后执行 npm.cmd ci。不要只复制一个锁文件，也不要执行 npm audit fix --force。审计结果以运行时的 npm 公告库为准。
