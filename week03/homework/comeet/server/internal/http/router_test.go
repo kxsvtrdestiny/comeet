@@ -19,7 +19,7 @@ func TestHealthAndFailure(t *testing.T) {
 	for _, tc := range []struct {
 		method, path string
 		status       int
-	}{{"GET", "/api/v1/health/live", 200}, {"GET", "/api/v1/health/ready", 200}, {"POST", "/api/v1/health/live", 405}, {"GET", "/api/v1/auth/login", 404}} {
+	}{{"GET", "/api/v1/health/live", 200}, {"GET", "/api/v1/health/ready", 200}, {"POST", "/api/v1/health/live", 405}, {"GET", "/api/v1/auth/login", 405}} {
 		r := httptest.NewRequest(tc.method, tc.path, nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)

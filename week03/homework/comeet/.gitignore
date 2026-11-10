@@ -12,4 +12,4 @@ artifacts/
 playwright-report/
 test-results/
 
-web/public/comeet-stage1.zip
+web/public/comeet-*.zip

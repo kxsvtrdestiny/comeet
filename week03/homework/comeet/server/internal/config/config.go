@@ -65,6 +65,12 @@ func Load(envFile string) (Config, error) {
 	if err != nil {
 		return c, fmt.Errorf("DEEPSEEK_ENABLED must be boolean")
 	}
+	if len(c.JWTSecret) < 32 {
+		return c, fmt.Errorf("JWT_SECRET must contain at least 32 bytes; run with -env-file .env -init-env first")
+	}
+	if c.MaxParticipants > 6 {
+		return c, fmt.Errorf("MAX_PARTICIPANTS must be between 1 and 6")
+	}
 	return c, nil
 }
 func (c Config) MediaConfigured() bool {

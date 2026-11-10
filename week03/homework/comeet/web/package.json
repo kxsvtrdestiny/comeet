@@ -15,7 +15,8 @@
     "lucide-react": "0.548.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-router-dom": "7.18.5"
+    "react-router-dom": "7.18.5",
+    "zustand": "5.0.8"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

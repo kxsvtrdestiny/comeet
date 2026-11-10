@@ -2,14 +2,24 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { getHealth, type Health } from "../services/api";
 export default function HealthPanel() {
-  if (import.meta.env.MODE === "pages") return (
-    <section className="card health" aria-label="静态预览说明">
-      <h2>第一阶段 · 静态界面预览</h2>
-      <p>此测试站仅展示界面，不运行 Go 和 SQLite，尚未连接业务服务。</p>
-      <p className="muted">数据库健康检查需在 Windows 按 README 启动后端后验收；此处不展示模拟成功状态。</p>
-      <a className="text-button" href={`${import.meta.env.BASE_URL}comeet-stage1.zip`} download>下载第一阶段源码 ZIP</a>
-    </section>
-  );
+  if (import.meta.env.MODE === "pages")
+    return (
+      <section className="card health" aria-label="静态预览说明">
+        <h2>第二阶段 · 静态界面预览</h2>
+        <p>此测试站仅展示界面，不运行 Go 和 SQLite，尚未连接业务服务。</p>
+        <p className="muted">
+          数据库健康检查需在 Windows 按 README
+          启动后端后验收；此处不展示模拟成功状态。
+        </p>
+        <a
+          className="text-button"
+          href={`${import.meta.env.BASE_URL}comeet-source.zip`}
+          download
+        >
+          下载第二阶段源码 ZIP
+        </a>
+      </section>
+    );
   return <LiveHealthPanel />;
 }
 function LiveHealthPanel() {

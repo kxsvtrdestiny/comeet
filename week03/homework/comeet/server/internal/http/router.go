@@ -68,8 +68,9 @@ func Router(db *sql.DB, c config.Config) http.Handler {
 			send(w, r, 503, "DATABASE_UNAVAILABLE", "数据库暂不可用", nil)
 			return
 		}
-		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 1})
+		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 2})
 	})
+	business(r, db, c)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		send(w, r, 404, "NOT_FOUND", "接口不存在或尚未开发", nil)
 	})

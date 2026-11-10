@@ -17,7 +17,16 @@ import (
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	env := flag.String("env-file", "", "optional dotenv file; existing process variables take priority")
+	initEnv := flag.Bool("init-env", false, "initialize a private JWT key without starting the server")
 	flag.Parse()
+	if *initEnv {
+		if err := config.InitializeEnv(*env); err != nil {
+			slog.Error("env_initialization_failed", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("local_env_ready", "message", "JWT key retained or generated; value is never printed")
+		return
+	}
 	c, e := config.Load(*env)
 	if e != nil {
 		slog.Error("configuration_failed", "error", e)
@@ -33,7 +42,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	done := make(chan error, 1)
-	go func() { slog.Info("server_start", "address", c.Addr, "stage", 1); done <- srv.ListenAndServe() }()
+	go func() { slog.Info("server_start", "address", c.Addr, "stage", 2); done <- srv.ListenAndServe() }()
 	select {
 	case e := <-done:
 		if e != http.ErrServerClosed {

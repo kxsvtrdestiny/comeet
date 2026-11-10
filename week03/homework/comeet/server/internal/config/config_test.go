@@ -3,10 +3,12 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestDefaultsAndValidation(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test-only-32-byte-secret-000000000000")
 	t.Setenv("HTTP_ADDR", "127.0.0.1:8080")
 	t.Setenv("MAX_PARTICIPANTS", "6")
 	c, e := Load("")
@@ -22,6 +24,7 @@ func TestDefaultsAndValidation(t *testing.T) {
 	}
 }
 func TestExplicitEnvFile(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test-only-32-byte-secret-000000000000")
 	t.Setenv("HTTP_ADDR", "127.0.0.1:9090")
 	t.Setenv("MAX_PARTICIPANTS", "6")
 	p := filepath.Join(t.TempDir(), ".env")
@@ -32,5 +35,43 @@ func TestExplicitEnvFile(t *testing.T) {
 	}
 	if _, e = Load(p + "missing"); e == nil {
 		t.Fatal("missing explicit file must fail")
+	}
+}
+
+func TestPrivateKeyInitialization(t *testing.T) {
+	p := filepath.Join(t.TempDir(), ".env")
+	original := "# user settings retained\nHTTP_ADDR=127.0.0.1:9090\nJWT_SECRET=\nDATABASE_PATH=./custom/test.db\n"
+	if e := os.WriteFile(p, []byte(original), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e := InitializeEnv(p); e != nil {
+		t.Fatal(e)
+	}
+	first, e := os.ReadFile(p)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !strings.Contains(string(first), "# user settings retained") || !strings.Contains(string(first), "DATABASE_PATH=./custom/test.db") {
+		t.Fatal("existing settings overwritten")
+	}
+	if e = InitializeEnv(p); e != nil {
+		t.Fatal(e)
+	}
+	again, _ := os.ReadFile(p)
+	if string(first) != string(again) {
+		t.Fatal("key rotated on repeated initialization")
+	}
+	t.Setenv("JWT_SECRET", "")
+	if _, e = Load(""); e == nil {
+		t.Fatal("missing JWT secret must fail")
+	}
+	t.Setenv("JWT_SECRET", "short")
+	if _, e = Load(""); e == nil {
+		t.Fatal("weak JWT secret must fail")
+	}
+	t.Setenv("JWT_SECRET", "test-only-long-enough-secret-0123456789")
+	t.Setenv("MAX_PARTICIPANTS", "7")
+	if _, e = Load(""); e == nil {
+		t.Fatal("product capacity limit exceeded")
 	}
 }

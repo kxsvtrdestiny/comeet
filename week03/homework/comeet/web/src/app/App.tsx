@@ -1,76 +1,142 @@
-import { useEffect } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { Video, LayoutDashboard, History } from "lucide-react";
 import Dashboard from "../pages/Dashboard";
 import Auth from "../pages/Auth";
 import Prepare from "../pages/Prepare";
 import Room from "../pages/Room";
 import HistoryPage from "../pages/HistoryPage";
+import MeetingDetail from "../pages/MeetingDetail";
+import Protected, { SessionCheck } from "../components/Protected";
+import { useAuth } from "../stores/auth";
+import { post } from "../services/api";
+import { staticPreview } from "../services/types";
 export default function App() {
   const { pathname } = useLocation();
+  const nav = useNavigate();
+  const session = useAuth((s) => s.session);
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
-  if (/^\/meetings\/[^/]+\/room\/?$/.test(pathname)) return <Room />;
+  async function logout() {
+    setBusy(true);
+    setError("");
+    try {
+      await post("/auth/logout");
+      useAuth.getState().clear("已退出登录");
+      nav("/login", { replace: true });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const protectedPage = (page: React.ReactNode) => (
+    <Protected>{page}</Protected>
+  );
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <Link to="/" className="brand">
-          <span>
-            <Video size={22} />
-          </span>
-          comeet.
-        </Link>
-        <div className="sidebar-label">我的空间</div>
-        <nav>
-          <NavLink end to="/">
-            <LayoutDashboard size={19} />
-            工作台
-          </NavLink>
-          <NavLink to="/history">
-            <History size={19} />
-            会议记录
-          </NavLink>
-        </nav>
-        <div className="sidebar-bottom">
-          <span className="tag">阶段 01 / 08</span>
-          <Link to="/login">登录界面 ↗</Link>
-        </div>
-      </aside>
-      <div className="workspace">
-        <header className="topbar">
-          <span>团队会议空间</span>
-          <div>
-            <span className="stage-label">{import.meta.env.MODE === "pages" ? "静态预览 · 未连接后端" : "界面预览 · 尚未登录"}</span>
-            <Link to="/login">登录 / 注册</Link>
-          </div>
-        </header>
-        <main>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/login" element={<Auth />} />
-            <Route path="/register" element={<Auth register />} />
-            <Route path="/meetings/:id/prepare" element={<Prepare />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/history/:id" element={<HistoryPage detail />} />
-            <Route
-              path="*"
-              element={
-                <>
-                  <h1>页面不存在</h1>
-                  <Link to="/">返回工作台</Link>
-                </>
-              }
-            />
-          </Routes>
-          <footer className="page-footer">
-            <div className="preview-links">
-              <Link to="/meetings/preview/prepare">准备页骨架</Link>
-              <Link to="/meetings/preview/room">会议室骨架</Link>
+    <>
+      <SessionCheck />
+      {/^\/meetings\/[^/]+\/room\/?$/.test(pathname) ? (
+        protectedPage(<Room />)
+      ) : (
+        <div className="shell">
+          <aside className="sidebar">
+            <Link to="/" className="brand">
+              <span>
+                <Video size={22} />
+              </span>
+              comeet.
+            </Link>
+            <div className="sidebar-label">我的空间</div>
+            <nav>
+              <NavLink end to="/">
+                <LayoutDashboard size={19} />
+                工作台
+              </NavLink>
+              <NavLink to="/history">
+                <History size={19} />
+                会议记录
+              </NavLink>
+            </nav>
+            <div className="sidebar-bottom">
+              <span className="tag">阶段 02 / 08</span>
             </div>
-          </footer>
-        </main>
-      </div>
-    </div>
+          </aside>
+          <div className="workspace">
+            <header className="topbar">
+              <span>团队会议空间</span>
+              <div>
+                {staticPreview ? (
+                  <>
+                    <span>静态预览 · 未连接后端</span>
+                    <Link to="/login">登录 / 注册</Link>
+                  </>
+                ) : session ? (
+                  <>
+                    <span>{session.user.displayName}</span>
+                    <button
+                      className="text-button"
+                      onClick={logout}
+                      disabled={busy}
+                    >
+                      {busy ? "退出中…" : "退出登录"}
+                    </button>
+                  </>
+                ) : (
+                  <Link to="/login">登录 / 注册</Link>
+                )}
+              </div>
+            </header>
+            <main>
+              {error && (
+                <p role="alert" className="error">
+                  {error}
+                </p>
+              )}
+              <Routes>
+                <Route path="/" element={protectedPage(<Dashboard />)} />
+                <Route path="/login" element={<Auth />} />
+                <Route path="/register" element={<Auth register />} />
+                <Route
+                  path="/meetings/:id/prepare"
+                  element={protectedPage(<Prepare />)}
+                />
+                <Route
+                  path="/meetings/:id"
+                  element={protectedPage(<MeetingDetail />)}
+                />
+                <Route
+                  path="/history"
+                  element={protectedPage(<HistoryPage />)}
+                />
+                <Route
+                  path="/history/:id"
+                  element={protectedPage(<HistoryPage detail />)}
+                />
+                <Route
+                  path="*"
+                  element={
+                    <>
+                      <h1>页面不存在</h1>
+                      <Link to="/">返回工作台</Link>
+                    </>
+                  }
+                />
+              </Routes>
+            </main>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

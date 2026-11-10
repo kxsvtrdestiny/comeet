@@ -1,7 +1,17 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, VideoOff } from "lucide-react";
 import { Disabled } from "../components/Common";
+import { useRemote } from "../services/useRemote";
+import {
+  staticPreview,
+  formatMeetingNo,
+  type Preparation,
+} from "../services/types";
 export default function Prepare() {
+  const { id } = useParams();
+  const { data, loading, error, retry } = useRemote<Preparation>(
+    staticPreview ? null : `/meetings/${encodeURIComponent(id || "")}/prepare`,
+  );
   return (
     <>
       <Link to="/" className="text-button">
@@ -9,32 +19,58 @@ export default function Prepare() {
         返回工作台
       </Link>
       <h1>入会准备</h1>
-      <p className="subtitle">准备页骨架 · 当前未查询或加入任何真实会议。</p>
-      <div className="prepare-grid">
-        <div className="preview">
-          <VideoOff size={40} />
-          <h2>尚未启用设备预览</h2>
-          <p>第 4 阶段接入摄像头和麦克风，不会在此阶段申请权限。</p>
-        </div>
-        <section className="card">
-          <h2>设备准备</h2>
-          <label>
-            麦克风
-            <select disabled>
-              <option>第 4 阶段开放设备选择</option>
-            </select>
-          </label>
-          <label>
-            摄像头
-            <select disabled>
-              <option>第 4 阶段开放设备选择</option>
-            </select>
-          </label>
-          <Disabled stage={4}>检测设备</Disabled>
-          <Disabled stage={3}>进入会议</Disabled>
-          <p className="muted">正式入会与文字交流将在第 3 阶段接通。</p>
+      {staticPreview ? (
+        <p className="subtitle">静态预览未连接后端，没有真实会议信息。</p>
+      ) : loading ? (
+        <p role="status">正在查询会议信息…</p>
+      ) : error ? (
+        <section className="card" role="alert">
+          <p className="error">{error}</p>
+          <button className="text-button" onClick={retry}>
+            重试
+          </button>
         </section>
-      </div>
+      ) : (
+        data && (
+          <section className="card meeting-info">
+            <h2>{data.title}</h2>
+            <p>
+              会议号：<strong>{formatMeetingNo(data.meetingNo)}</strong>
+            </p>
+            <p>主持人：{data.hostName}</p>
+            <p>状态：进行中</p>
+          </section>
+        )
+      )}
+      {(staticPreview || data) && (
+        <div className="prepare-grid">
+          <div className="preview">
+            <VideoOff size={40} />
+            <h2>尚未启用设备预览</h2>
+            <p>第 4 阶段接入设备；当前不会申请摄像头或麦克风权限。</p>
+          </div>
+          <section className="card">
+            <h2>设备准备</h2>
+            <label>
+              麦克风
+              <select disabled>
+                <option>第 4 阶段开放设备选择</option>
+              </select>
+            </label>
+            <label>
+              摄像头
+              <select disabled>
+                <option>第 4 阶段开放设备选择</option>
+              </select>
+            </label>
+            <Disabled stage={4}>检测设备</Disabled>
+            <Disabled stage={3}>进入会议</Disabled>
+            <p className="muted">
+              正式入会将在第 3 阶段接通。浏览准备页不会占用席位或产生参会记录。
+            </p>
+          </section>
+        </div>
+      )}
     </>
   );
 }
