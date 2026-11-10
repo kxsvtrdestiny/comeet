@@ -67,8 +67,17 @@ for (const width of [1440, 1024, 768, 390])
       await page.setViewportSize({ width, height: 900 });
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
-      let roomId=m.id;
-      if(route==='/room'){const response=await request.post('/api/v1/meetings',{headers:{Authorization:`Bearer ${a.token}`},data:{title:'响应式文字会议',clientRequestId:crypto.randomUUID()}});roomId=(await response.json()).data.id}
+      let roomId = m.id;
+      if (route === "/room") {
+        const response = await request.post("/api/v1/meetings", {
+          headers: { Authorization: `Bearer ${a.token}` },
+          data: {
+            title: "响应式文字会议",
+            clientRequestId: crypto.randomUUID(),
+          },
+        });
+        roomId = (await response.json()).data.id;
+      }
       const path =
         route === "/prepare"
           ? `/meetings/${m.id}/prepare`

@@ -1,19 +1,21 @@
-# 开发约定 · 第二阶段
+# 开发约定 · 第三阶段
 
-依据 docs/开发规格-v2.0.md。第一阶段已由用户确认全部人工测试通过；第二阶段完成后停止等待验收，不开发第三阶段。截图、报错、继续修复不算下一阶段授权。
+依据 docs/开发规格-v2.0.md。前两阶段已由用户确认验收通过；第三阶段完成后停止等待验收，不开发第四阶段。截图、报错、继续修复不算下一阶段授权。
 
 所有项目文件在 week03/homework/comeet，未改其他作业。Web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.3.8、React Router 7.18.5、Zustand 5.0.8；Go 1.25.3、chi 5.2.3、jwt/v5 5.3.0、x/crypto 0.43.0、modernc SQLite 1.39.1。精确依赖以锁文件为准。
 
-server/internal/auth：bcrypt/JWT/持久会话/撤销；meeting：会议号、对象权限、游标、幂等创建、原子预留；http：鉴权、中间件、稳定错误码、JSON DTO、限流；store/migrations：单连接 SQLite、WAL/外键/超时、内嵌迁移。002 为追加迁移，不改已应用的 001，不清空已有数据。
+server/internal/auth：bcrypt/JWT/持久会话/撤销；meeting：会议号、对象权限、游标、幂等创建、原子预留；http：鉴权、中间件、稳定错误码、JSON DTO、限流；store/migrations：单连接 SQLite、WAL/外键/超时、内嵌迁移。003 为追加迁移，不改已应用的 001/002，不清空已有数据。
 
 web/services：类型、fetch、认证失效与请求；stores/auth：Zustand 管理当前标签 sessionStorage 登录，不重复缓存会议列表；Protected：刷新验证 /me、到期计时、登录返回地址；pages：真实账号/工作台/详情/受限准备。纯文本渲染，不注入 HTML。Pages 模式禁用业务，不填假数据。
 
--init-env 只为缺失/空本地密钥生成随机值，保留其他配置及既有合格密钥，不打印秘密。生产读系统环境；显式 -env-file 才读文件。事务不调用外部网络。恢复凭证由随机 UUID 与 HMAC 派生以复现幂等重试，库内只存 hash。joining 仅预留，room.join 在未来阶段真正成功后才写成员和历史。
+-init-env 只为缺失/空本地密钥生成随机值，保留其他配置及既有合格密钥，不打印秘密。生产读系统环境；显式 -env-file 才读文件。事务不调用外部网络。恢复凭证由随机 UUID 与 HMAC 派生以复现幂等重试，库内只存 hash。joining 仅预留，第三阶段 room.join 成功后写成员和参会区间。
 
 Go testing/httptest 使用临时真实 SQLite，覆盖认证/对象权限/竞争/重开数据库；race 在 Linux 验证，Windows 编译不依赖 CGO。Playwright 真正请求 Go，创建 e2e/ui 前缀测试账号及会议，不能当成正常链路种子或推荐人工固定登录。Pages 产物本地 Hash 路由检查不等同公网发布。结果见 docs/阶段验收.md；Windows 具体命令在 README 和手工测试中。
 
-当前没有 WS、聊天、媒体、会控/结束、AI。测试 fixtures 可设置 ended/ending/ban/member 来测权限，不代表运行中实现了后续业务。无 Key 时不声称第三方真实联调通过。
+当前已有 WS/成员/持久聊天/离会/重连，没有媒体、会控/结束、AI。测试 fixtures 可设置 ended/ending/ban/member 来测权限，不代表运行中实现了后续业务。无 Key 时不声称第三方真实联调通过。
 
 不再加宣传标语或英文眉题，保留功能标题与必要状态。全部阶段完成后清理 UI 阶段编号、骨架/预览文字和临时导航，保留真实权限、配置、错误和 AI 来源提示；阶段历史文档保留。最终只将 comeet 文件夹放进学校仓库指定位置，不附带 week03/homework 或源仓库外壳、不改其他作业。见 docs/交付检查.md。
 
-源码 stage2-review，第一阶段 stage1-review 保留；此前授权的本仓库源码与测试站 push 用于本阶段交付，学校仓库操作仍按最终指定目标执行。
+源码 stage3-review，第一阶段 stage1-review 保留；此前授权的本仓库源码与测试站 push 用于本阶段交付，学校仓库操作仍按最终指定目标执行。
+
+第三阶段 internal/realtime 管理一次性票据、连接 generation、成员/聊天事务和重启恢复；单读/单写、有界发送队列，网络等待不持有全局锁。45 秒恢复宽限不因重试/重启反复延长；旧连接回调不能删除新连接。前端 room.ts 按 epoch 丢弃旧回调，先订阅快照高水位再分页补拉，消息原 ID 重试。详细协议见 API，实际检查见阶段验收。

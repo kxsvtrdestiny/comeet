@@ -1,18 +1,18 @@
-# Comeet · 第二阶段
+# Comeet · 第三阶段
 
-第一阶段已由用户明确确认全部人工验收通过。本次只完成第二阶段：账号、会话、会议 REST 与真实 SQLite 数据；等待第二阶段人工验收。**不含 WebSocket、聊天、音视频、共享或 AI。** 界面沿用已验收样式，未加入宣传标语。
+前两阶段已由用户明确验收通过。本次只完成第三阶段：WebSocket 成员、持久聊天、离会与业务重连；等待第三阶段人工验收。**不含音视频、共享或 AI。** 界面沿用已验收样式，未加入宣传标语。
 
-源码位于仓库的 `week03/homework/comeet`。第二阶段源码分支为 `stage2-review`；第一阶段分支保留。最终交付学校仓库时只放 **comeet 文件夹**，不带当前仓库外层目录、不改变其他作业，详见 docs/交付检查.md。
+源码位于仓库的 `week03/homework/comeet`。第三阶段源码分支为 `stage3-review`；第一阶段分支保留。最终交付学校仓库时只放 **comeet 文件夹**，不带当前仓库外层目录、不改变其他作业，详见 docs/交付检查.md。
 
 ## Windows 更新已有项目
 
 以下命令按用户当前目录 **D:\comeet-stage1-review\week03\homework\comeet** 编写。如果实际解压目录不同，应替换路径；stage1-review 这个本机文件夹名不影响程序版本。
 
 1. 在原前端、后端两个终端分别按 Ctrl+C 停止。
-2. 下载 stage2-review 源码 ZIP，全部解压。打开新版的 week03/homework/comeet，将其文件复制到上述旧项目位置，替换同名源码。**不要先清空旧目录；保留 server/.env 和 server/data。** 不复制 node_modules/dist 等旧依赖产物到新版。
-3. 按下列终端 A/B 命令运行。新迁移 002_accounts_meetings.sql 自动执行，不删除第一阶段数据库，不需要手动运行 SQL。
+2. 下载 stage3-review 源码 ZIP，全部解压。打开新版的 week03/homework/comeet，将其文件复制到上述旧项目位置，替换同名源码。**不要先清空旧目录；保留 server/.env 和 server/data。** 不复制 node_modules/dist 等旧依赖产物到新版。
+3. 按下列终端 A/B 命令运行。新迁移 003_realtime_chat.sql 自动执行，不删除既有数据库，不需要手动运行 SQL。
 
-下载地址：https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage2-review.zip
+下载地址：https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage3-review.zip
 
 GitHub 源码 ZIP 保留仓库的 week03/homework/comeet 路径；Pages 提供的独立源码包只含 comeet 文件夹。两种情况都将 comeet 内部文件更新到既有目录，保留 .env/data。
 
@@ -35,7 +35,7 @@ go run ./cmd/server -env-file .env -init-env
 go run ./cmd/server -env-file .env
 ```
 
-看到 `server_start` 且 stage 为 2，保持终端运行。地址为 127.0.0.1:8080。不要把生成的 .env 上传或复制给别人。密钥一经生成需保留，重启更换密钥会使已有 JWT 失效。`-init-env` 检测到已有非空但不足 32 字节的密钥时会报错，不会擅自覆盖，需要用户自行更换合格私有密钥。
+看到 `server_start` 且 stage 为 3，保持终端运行。地址为 127.0.0.1:8080。不要把生成的 .env 上传或复制给别人。密钥一经生成需保留，重启更换密钥会使已有 JWT 失效。`-init-env` 检测到已有非空但不足 32 字节的密钥时会报错，不会擅自覆盖，需要用户自行更换合格私有密钥。
 
 显式 `-env-file .env` 才加载文件，进程系统环境优先；生产只读系统环境，不自动读取 .env。缺少有效 JWT_SECRET（32+ 字节）时启动会给出初始化提示，不能用仓库中的公开默认密钥。可选媒体/AI 未配置不阻止本阶段运行。
 
@@ -57,17 +57,15 @@ npm ci 完成后才执行启动命令。若下载停滞可用 `npm.cmd ci --verb
 
 ## 本阶段如何操作
 
-- A 登录后填写可选标题，创建会议，得到 9 位会议号，进入准备页。刷新工作台仍有会议。
-- B 登录后输入 A 的会议号，可使用 123-456-789 格式进入受限准备信息。仅知道会议号不获得详情或历史权限。
-- 主持人可查看自己创建的会议详情。B 尚未正式参会，直接访问 `/meetings/实际ID` 应返回无权限；B 可以查看 `/meetings/实际ID/prepare` 的最小准备信息。
-- “进入会议”仍禁用，明确说明正式入会第 3 阶段接通。准备页不占席位、不开摄像头/麦克风，不产生参会历史。
-- join 预留 REST 已完成并自动测试；当前不通过 UI 启动正式会话。它不是 WebSocket 入会，不代表在线或聊天可用。
-- 退出会撤销当前 sid，并释放其未入会预留；其他独立登录会话不被退出。旧 JWT 即使未到 exp，也不能再访问后端。
-- 登录默认 8 小时；过期/撤销返回 401，前端清理本标签 sessionStorage 并跳转登录，保留受保护页面返回地址。没有刷新令牌，也不在 localStorage 长期保存登录。
+A 创建会议后进入准备页，点击“进入会议”；B 用自己的账号查询同一个 9 位会议号，点击进入。准备页本身不占席位，WebSocket 正式入会后才记录成员和参会区间。会议室支持真实成员列表、主持人/本人标识、双向纯文字聊天、历史加载、原消息重试和主动离会。
+
+短暂掉线显示重连状态，45 秒宽限内自动申请新票据恢复同一参会区间并分页补齐消息；超过宽限后停止，按页面提示重新加入。复制同一会话的标签不会顶掉原健康连接。主持人个人离开不结束会议。账号退出会撤销当前登录，并关闭其业务连接。
+
+工作台不再显示开发诊断，需查看时进入左侧“设置 → 服务状态”。麦克风、摄像头、共享仍禁用，本阶段无需任何媒体/AI Key，也不会申请设备权限。
 
 ## 停止与重启
 
-两个终端分别 Ctrl+C。重启时终端 A 在 server 目录执行 `go run ./cmd/server -env-file .env`，终端 B 在 web 目录执行 `npm.cmd run dev`，浏览器刷新。保留 .env 和 data；正常重启不会删除用户、会议或未过期登录会话。预留本身只有 60 秒，超时后不能沿用同一请求复活。
+两个终端分别 Ctrl+C。重启时终端 A 在 server 目录执行 `go run ./cmd/server -env-file .env`，终端 B 在 web 目录执行 `npm.cmd run dev`，浏览器刷新。保留 .env 和 data；正常重启不会删除用户、会议、聊天或未过期登录会话。测试业务恢复时只重启终端 A，保持 B 和浏览器开启，在 45 秒内恢复后端；不要更换密钥、清数据库或重启前端。超过恢复宽限则手动重新加入。尚未正式入会的预留只有 60 秒。
 
 ## 终端 C：可执行检查（PowerShell）
 
@@ -93,17 +91,17 @@ Go 接口测试自己创建临时数据库，不使用用户运行数据；不�
 
 ## GitHub Pages 与本机区别
 
-https://kxsvtrdestiny.github.io/comeet/#/ 仅为静态界面预览，无法运行 Go/SQLite。静态页面禁用账号提交和创建能力，明确未连接后端，不展示假 health 或假会议。**第二阶段账号、权限、持久化必须在 localhost 的完整前后端上验收，不能在 Pages 上验收登录。** Pages 是否实际完成公网部署以用户浏览器为准；本云环境对 github.io/管理 API 有访问限制。
+https://kxsvtrdestiny.github.io/comeet/#/ 仅为静态界面预览，无法运行 Go/SQLite。静态页面禁用账号提交和创建能力，明确未连接后端，不展示假 health 或假会议。**第三阶段账号、权限、持久化必须在 localhost 的完整前后端上验收，不能在 Pages 上验收登录。** Pages 是否实际完成公网部署以用户浏览器为准；本云环境对 github.io/管理 API 有访问限制。
 
 web 目录的 `npm.cmd run build:pages` 使用 HashRouter 与 /comeet/ 资源前缀。普通 `npm.cmd run build` 保持 BrowserRouter。云端内网开发可用 `npm run dev:cloud`，这不是生产托管或公网部署。
 
 ## 常见问题
 
 - JWT_SECRET 报错：在终端 A 执行上面的 -init-env 命令，不要直接复制别人的密钥；已有有效值不会旋转。
-- health 失败：确认终端 A 保持开启，访问 http://localhost:8080/api/v1/health/ready。预期 schemaVersion 为 002_accounts_meetings.sql。
+- health 失败：确认终端 A 保持开启，访问 http://localhost:8080/api/v1/health/ready。预期 schemaVersion 为 003_realtime_chat.sql。
 - 注册重复用户名：大小写规范化后仍唯一；换名字或用原账号登录。
 - 登录错误统一提示用户名或密码错误；不会说明账号是否存在。
-- 详情 FORBIDDEN：当前账号既不是主持人，也没有正式参会记录；在本阶段通过会议号只能看准备信息，这是权限保护的预期结果。
+- 详情 FORBIDDEN：当前账号既不是主持人，也没有正式参会记录；仅查询会议号只能看准备信息，正式入会后才有成员及聊天读取权限。
 - ALREADY_JOINED / MEETING_FULL / SESSION_EXPIRED：预留接口的重复会话、容量或过期保护；不应通过清空数据库来“修好”。
 - 429：账号和会议号查询有基础限流，稍后重试；不盲信 X-Forwarded-For。
 - 网络下载失败：检查 Go/NPM 的下载源与本机网络，不关闭 TLS、GOSUMDB 或锁文件校验。
@@ -111,4 +109,4 @@ web 目录的 `npm.cmd run build:pages` 使用 HashRouter 与 /comeet/ 资源前
 
 报错请提供终端 A/B/C 中哪一个、当前目录、执行命令、错误输出和访问路径。不要包含 .env、Key、密码或 JWT/token。
 
-详细 API、阶段结果及 8 项人工检查分别见 docs/API.md、docs/阶段验收.md、docs/手工测试.md。只完成第二阶段，用户验收通过前不进入第三阶段。
+详细 API、阶段结果及 8 项人工检查分别见 docs/API.md、docs/阶段验收.md、docs/手工测试.md。只完成第三阶段，用户验收通过前不进入第四阶段。

@@ -20,7 +20,10 @@ export const useAuth = create<AuthState>()(
       setSession: (session) =>
         set({ session, verified: true, notice: "", verificationError: "" }),
       clear: (notice = "") => {
-        for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith("comeet.room."))sessionStorage.removeItem(key)}
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i);
+          if (key?.startsWith("comeet.room.")) sessionStorage.removeItem(key);
+        }
         set({ session: null, verified: false, notice, verificationError: "" });
       },
       verify: (error = "") =>

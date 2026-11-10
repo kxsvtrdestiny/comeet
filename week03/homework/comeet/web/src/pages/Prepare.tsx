@@ -64,7 +64,16 @@ export default function Prepare() {
               </select>
             </label>
             <Disabled stage={4}>检测设备</Disabled>
-            <Link className="button" to={`/meetings/${id}/room`} aria-disabled={staticPreview} onClick={e=>{if(staticPreview)e.preventDefault()}}>进入会议</Link>
+            <Link
+              className="button"
+              to={`/meetings/${id}/room`}
+              aria-disabled={staticPreview}
+              onClick={(e) => {
+                if (staticPreview) e.preventDefault();
+              }}
+            >
+              进入会议
+            </Link>
             <p className="muted">
               点击进入后才预留席位并正式入会。仅浏览准备页不会产生参会记录。
             </p>

@@ -59,7 +59,11 @@ func Router(db *sql.DB, c config.Config, realtimeServices ...*realtime.Service) 
 			start := time.Now()
 			wrapped := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(wrapped, r)
-			slog.Info("http_request", "request_id", id, "operation", r.Method+" "+r.URL.Path, "status", wrapped.Status(), "error_code", r.Context().Value(key{}).(*requestState).code, "duration_ms", time.Since(start).Milliseconds())
+			errorCode := r.Context().Value(key{}).(*requestState).code
+			if value := w.Header().Get("X-Error-Code"); value != "" {
+				errorCode = value
+			}
+			slog.Info("http_request", "request_id", id, "operation", r.Method+" "+r.URL.Path, "status", wrapped.Status(), "error_code", errorCode, "duration_ms", time.Since(start).Milliseconds())
 		})
 	})
 	r.Get("/api/v1/health/live", func(w http.ResponseWriter, r *http.Request) {

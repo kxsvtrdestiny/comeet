@@ -1,24 +1,289 @@
 package main
-import("bytes";"context";"crypto/rand";"database/sql";"encoding/base64";"encoding/json";"fmt";"io";"net";"net/http";"os";"os/exec";"path/filepath";"strings";"syscall";"time";"github.com/coder/websocket";"github.com/google/uuid";_ "modernc.org/sqlite")
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"github.com/coder/websocket"
+	"github.com/google/uuid"
+	"io"
+	_ "modernc.org/sqlite"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+)
+
 type record map[string]any
+
 var base string
-var client=&http.Client{Timeout:3*time.Second}
-func call(path,token string,data any)record{var body io.Reader;if data!=nil{b,_:=json.Marshal(data);body=bytes.NewReader(b)};r,_:=http.NewRequest(map[bool]string{true:"POST",false:"GET"}[data!=nil],base+"/api/v1"+path,body);if token!=""{r.Header.Set("Authorization","Bearer "+token)};if data!=nil{r.Header.Set("Content-Type","application/json")};res,e:=client.Do(r);if e!=nil{panic("HTTP operation failed")};defer res.Body.Close();if res.StatusCode<200||res.StatusCode>=300{panic(fmt.Sprintf("HTTP operation %s status %d",path,res.StatusCode))};var envelope struct{Data json.RawMessage};if json.NewDecoder(res.Body).Decode(&envelope)!=nil{panic("bad HTTP JSON")};var out record;if string(envelope.Data)!="null"{json.Unmarshal(envelope.Data,&out)};return out}
-func login(name string)string{call("/auth/register","",record{"username":name,"displayName":name,"password":"Process_only_test_password"});return call("/auth/login","",record{"username":name,"password":"Process_only_test_password"})["token"].(string)}
-type socket struct{c *websocket.Conn;events chan record}
-func (s *socket)send(kind string,payload any){body,_:=json.Marshal(record{"v":1,"type":kind,"requestId":uuid.NewString(),"payload":payload});ctx,cancel:=context.WithTimeout(context.Background(),3*time.Second);defer cancel();if s.c.Write(ctx,websocket.MessageText,body)!=nil{panic("WS send failed")}}
-func (s *socket)wait(kind string)record{timer:=time.NewTimer(4*time.Second);defer timer.Stop();for{select{case e:=<-s.events:if e["type"]==kind{return e["payload"].(map[string]any)};case <-timer.C:panic("WS event timeout: "+kind)}}}
-func connect(token,meeting,session string)*socket{t:=call("/meetings/"+meeting+"/ws-ticket",token,record{"sessionId":session});ctx,cancel:=context.WithTimeout(context.Background(),3*time.Second);defer cancel();c,_,e:=websocket.Dial(ctx,"ws"+strings.TrimPrefix(base,"http")+"/ws?ticket="+t["ticket"].(string),&websocket.DialOptions{HTTPHeader:http.Header{"Origin":[]string{"http://localhost:5173"}}});if e!=nil{panic("WS dial failed")};s:=&socket{c,make(chan record,1024)};go func(){for{_,raw,e:=c.Read(context.Background());if e!=nil{return};var v record;if json.Unmarshal(raw,&v)!=nil{return};s.events<-v}}();s.send("room.join",record{});s.wait("room.snapshot");return s}
-func main(){dir,e:=os.MkdirTemp("","comeet-ws-process-");if e!=nil{panic(e)};defer os.RemoveAll(dir);listener,e:=net.Listen("tcp","127.0.0.1:0");if e!=nil{panic(e)};addr:=listener.Addr().String();listener.Close();base="http://"+addr;key:=make([]byte,32);rand.Read(key);env:=append(os.Environ(),"HTTP_ADDR="+addr,"DATABASE_PATH="+filepath.Join(dir,"state.db"),"JWT_SECRET="+base64.RawURLEncoding.EncodeToString(key),"ALLOWED_ORIGINS=http://localhost:5173");var process *exec.Cmd
- start:=func(){process=exec.Command("/workspace/comeet-stage3-server");process.Env=env;process.Stdout=io.Discard;process.Stderr=io.Discard;if process.Start()!=nil{panic("server start failed")};deadline:=time.Now().Add(5*time.Second);for time.Now().Before(deadline){res,e:=client.Get(base+"/api/v1/health/live");if e==nil{res.Body.Close();if res.StatusCode==200{return}};time.Sleep(50*time.Millisecond)};panic("server start timeout")}
- stop:=func(){if e:=process.Process.Signal(syscall.SIGTERM);e!=nil{panic("server stop failed")};done:=make(chan error,1);go func(){done<-process.Wait()}();select{case e:=<-done:if e!=nil{panic("server did not exit cleanly")};case <-time.After(10*time.Second):process.Process.Kill();panic("server shutdown was not bounded")}}
- defer func(){if process!=nil&&process.ProcessState==nil{process.Process.Kill();process.Wait()}}()
- start();a,b:=login("process_a"),login("process_b");m:=call("/meetings",a,record{"title":"进程重启验证","clientRequestId":uuid.NewString()})["id"].(string);join:=func(token string)record{return call("/meetings/"+m+"/join",token,record{"clientRequestId":uuid.NewString()})};ra,rb:=join(a),join(b);ca,cb:=connect(a,m,ra["sessionId"].(string)),connect(b,m,rb["sessionId"].(string));original:=uuid.NewString();ca.send("chat.send",record{"clientMessageId":original,"content":"initial"});first:=ca.wait("chat.ack");last:=cb.wait("chat.created")["id"].(float64);cb.c.CloseNow()
- for i:=0;i<110;i++{ca.send("chat.send",record{"clientMessageId":uuid.NewString(),"content":fmt.Sprintf("gap-%d",i)});ca.wait("chat.ack")}
- stop();start();call("/me",a,nil)
- for _,entry:=range []struct{token string;r record}{{a,ra},{b,rb}}{call("/meetings/"+m+"/resume",entry.token,record{"sessionId":entry.r["sessionId"],"resumeCredential":entry.r["resumeCredential"]})}
- ca,cb=connect(a,m,ra["sessionId"].(string)),connect(b,m,rb["sessionId"].(string));defer ca.c.CloseNow();defer cb.c.CloseNow();total,pages:=0,0;cursor:=int64(last)
- for{url:=fmt.Sprintf("%s/api/v1/meetings/%s/messages?afterId=%d&limit=100",base,m,cursor);req,_:=http.NewRequest("GET",url,nil);req.Header.Set("Authorization","Bearer "+b);res,e:=client.Do(req);if e!=nil||res.StatusCode!=200{panic("gap fetch failed")};var response struct{Data struct{Items []record;NextCursor int64;HasMore bool}};json.NewDecoder(res.Body).Decode(&response);res.Body.Close();total+=len(response.Data.Items);pages++;cursor=response.Data.NextCursor;if !response.Data.HasMore{break}}
- if total!=110||pages!=2{panic("restart gap not fully recovered")};ca.send("chat.send",record{"clientMessageId":original,"content":"initial"});if ca.wait("chat.ack")["id"]!=first["id"]{panic("retry after restart duplicated message")}
- db,e:=sql.Open("sqlite",filepath.Join(dir,"state.db"));if e!=nil{panic(e)};defer db.Close();var intervals,members,messages int;db.QueryRow("SELECT COUNT(*) FROM attendance_intervals").Scan(&intervals);db.QueryRow("SELECT COUNT(*) FROM meeting_members").Scan(&members);db.QueryRow("SELECT COUNT(*) FROM chat_messages").Scan(&messages);if intervals!=2||members!=2||messages!=111{panic("restart duplicated persistent data")}
- call("/meetings/"+m+"/leave",a,record{"sessionId":ra["sessionId"]});if call("/meetings/"+m,a,nil)["status"]!="active"{panic("host leave ended meeting")};call("/meetings/"+m+"/leave",b,record{"sessionId":rb["sessionId"]});var open int;db.QueryRow("SELECT COUNT(*) FROM attendance_intervals WHERE left_at IS NULL").Scan(&open);if open!=0{panic("open intervals after leave")};stop();fmt.Println("Actual process SIGTERM/restart passed: same accounts/JWT/session/credentials; 110 missed messages in 2 pages; 2 attendance intervals, 2 members, 111 unique messages; host leave keeps meeting active; all intervals close")}
+var client = &http.Client{Timeout: 3 * time.Second}
+
+func call(path, token string, data any) record {
+	var body io.Reader
+	if data != nil {
+		b, _ := json.Marshal(data)
+		body = bytes.NewReader(b)
+	}
+	r, _ := http.NewRequest(map[bool]string{true: "POST", false: "GET"}[data != nil], base+"/api/v1"+path, body)
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	if data != nil {
+		r.Header.Set("Content-Type", "application/json")
+	}
+	res, e := client.Do(r)
+	if e != nil {
+		panic("HTTP operation failed")
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		panic(fmt.Sprintf("HTTP operation %s status %d", path, res.StatusCode))
+	}
+	var envelope struct{ Data json.RawMessage }
+	if json.NewDecoder(res.Body).Decode(&envelope) != nil {
+		panic("bad HTTP JSON")
+	}
+	var out record
+	if string(envelope.Data) != "null" {
+		json.Unmarshal(envelope.Data, &out)
+	}
+	return out
+}
+func login(name string) string {
+	call("/auth/register", "", record{"username": name, "displayName": name, "password": "Process_only_test_password"})
+	return call("/auth/login", "", record{"username": name, "password": "Process_only_test_password"})["token"].(string)
+}
+
+type socket struct {
+	c      *websocket.Conn
+	events chan record
+}
+
+func (s *socket) send(kind string, payload any) {
+	body, _ := json.Marshal(record{"v": 1, "type": kind, "requestId": uuid.NewString(), "payload": payload})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if s.c.Write(ctx, websocket.MessageText, body) != nil {
+		panic("WS send failed")
+	}
+}
+func (s *socket) wait(kind string) record {
+	timer := time.NewTimer(4 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case e := <-s.events:
+			if e["type"] == kind {
+				return e["payload"].(map[string]any)
+			}
+		case <-timer.C:
+			panic("WS event timeout: " + kind)
+		}
+	}
+}
+func connect(token, meeting, session string) *socket {
+	t := call("/meetings/"+meeting+"/ws-ticket", token, record{"sessionId": session})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, _, e := websocket.Dial(ctx, "ws"+strings.TrimPrefix(base, "http")+"/ws?ticket="+t["ticket"].(string), &websocket.DialOptions{HTTPHeader: http.Header{"Origin": []string{"http://localhost:5173"}}})
+	if e != nil {
+		panic("WS dial failed")
+	}
+	s := &socket{c, make(chan record, 1024)}
+	go func() {
+		for {
+			_, raw, e := c.Read(context.Background())
+			if e != nil {
+				return
+			}
+			var v record
+			if json.Unmarshal(raw, &v) != nil {
+				return
+			}
+			s.events <- v
+		}
+	}()
+	s.send("room.join", record{})
+	s.wait("room.snapshot")
+	return s
+}
+func main() {
+	abrupt := flag.Bool("crash", false, "verify abrupt process death instead of graceful SIGTERM")
+	flag.Parse()
+	dir, e := os.MkdirTemp("", "comeet-ws-process-")
+	if e != nil {
+		panic(e)
+	}
+	defer os.RemoveAll(dir)
+	listener, e := net.Listen("tcp", "127.0.0.1:0")
+	if e != nil {
+		panic(e)
+	}
+	addr := listener.Addr().String()
+	listener.Close()
+	base = "http://" + addr
+	key := make([]byte, 32)
+	rand.Read(key)
+	env := append(os.Environ(), "HTTP_ADDR="+addr, "DATABASE_PATH="+filepath.Join(dir, "state.db"), "JWT_SECRET="+base64.RawURLEncoding.EncodeToString(key), "ALLOWED_ORIGINS=http://localhost:5173")
+	var process *exec.Cmd
+	start := func() {
+		process = exec.Command("/workspace/comeet-stage3-server")
+		process.Env = env
+		process.Stdout = io.Discard
+		process.Stderr = io.Discard
+		if process.Start() != nil {
+			panic("server start failed")
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			res, e := client.Get(base + "/api/v1/health/live")
+			if e == nil {
+				res.Body.Close()
+				if res.StatusCode == 200 {
+					return
+				}
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		panic("server start timeout")
+	}
+	stop := func() {
+		if e := process.Process.Signal(syscall.SIGTERM); e != nil {
+			panic("server stop failed")
+		}
+		done := make(chan error, 1)
+		go func() { done <- process.Wait() }()
+		select {
+		case e := <-done:
+			if e != nil {
+				panic("server did not exit cleanly")
+			}
+		case <-time.After(10 * time.Second):
+			process.Process.Kill()
+			panic("server shutdown was not bounded")
+		}
+	}
+	defer func() {
+		if process != nil && process.ProcessState == nil {
+			process.Process.Kill()
+			process.Wait()
+		}
+	}()
+	start()
+	a, b := login("process_a"), login("process_b")
+	m := call("/meetings", a, record{"title": "进程重启验证", "clientRequestId": uuid.NewString()})["id"].(string)
+	join := func(token string) record {
+		return call("/meetings/"+m+"/join", token, record{"clientRequestId": uuid.NewString()})
+	}
+	ra, rb := join(a), join(b)
+	ca, cb := connect(a, m, ra["sessionId"].(string)), connect(b, m, rb["sessionId"].(string))
+	original := uuid.NewString()
+	ca.send("chat.send", record{"clientMessageId": original, "content": "initial"})
+	first := ca.wait("chat.ack")
+	last := cb.wait("chat.created")["id"].(float64)
+	cb.c.CloseNow()
+	for i := 0; i < 110; i++ {
+		ca.send("chat.send", record{"clientMessageId": uuid.NewString(), "content": fmt.Sprintf("gap-%d", i)})
+		ca.wait("chat.ack")
+	}
+	if *abrupt {
+		if process.Process.Kill() != nil {
+			panic("crash injection failed")
+		}
+		process.Wait()
+	} else {
+		stop()
+	}
+	start()
+	call("/me", a, nil)
+	checkDB, err := sql.Open("sqlite", filepath.Join(dir, "state.db"))
+	if err != nil {
+		panic(err)
+	}
+	var recovering int
+	checkDB.QueryRow("SELECT COUNT(*) FROM participant_sessions WHERE state='reconnecting'").Scan(&recovering)
+	checkDB.Close()
+	if recovering != 2 {
+		panic("startup failed to restore reconnecting states")
+	}
+	for _, entry := range []struct {
+		token string
+		r     record
+	}{{a, ra}, {b, rb}} {
+		call("/meetings/"+m+"/resume", entry.token, record{"sessionId": entry.r["sessionId"], "resumeCredential": entry.r["resumeCredential"]})
+	}
+	ca, cb = connect(a, m, ra["sessionId"].(string)), connect(b, m, rb["sessionId"].(string))
+	defer ca.c.CloseNow()
+	defer cb.c.CloseNow()
+	total, pages := 0, 0
+	cursor := int64(last)
+	for {
+		url := fmt.Sprintf("%s/api/v1/meetings/%s/messages?afterId=%d&limit=100", base, m, cursor)
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("Authorization", "Bearer "+b)
+		res, e := client.Do(req)
+		if e != nil || res.StatusCode != 200 {
+			panic("gap fetch failed")
+		}
+		var response struct {
+			Data struct {
+				Items      []record
+				NextCursor int64
+				HasMore    bool
+			}
+		}
+		json.NewDecoder(res.Body).Decode(&response)
+		res.Body.Close()
+		total += len(response.Data.Items)
+		pages++
+		cursor = response.Data.NextCursor
+		if !response.Data.HasMore {
+			break
+		}
+	}
+	if total != 110 || pages != 2 {
+		panic("restart gap not fully recovered")
+	}
+	ca.send("chat.send", record{"clientMessageId": original, "content": "initial"})
+	if ca.wait("chat.ack")["id"] != first["id"] {
+		panic("retry after restart duplicated message")
+	}
+	db, e := sql.Open("sqlite", filepath.Join(dir, "state.db"))
+	if e != nil {
+		panic(e)
+	}
+	defer db.Close()
+	var intervals, members, messages int
+	db.QueryRow("SELECT COUNT(*) FROM attendance_intervals").Scan(&intervals)
+	db.QueryRow("SELECT COUNT(*) FROM meeting_members").Scan(&members)
+	db.QueryRow("SELECT COUNT(*) FROM chat_messages").Scan(&messages)
+	if intervals != 2 || members != 2 || messages != 111 {
+		panic("restart duplicated persistent data")
+	}
+	call("/meetings/"+m+"/leave", a, record{"sessionId": ra["sessionId"]})
+	if call("/meetings/"+m, a, nil)["status"] != "active" {
+		panic("host leave ended meeting")
+	}
+	call("/meetings/"+m+"/leave", b, record{"sessionId": rb["sessionId"]})
+	var open int
+	db.QueryRow("SELECT COUNT(*) FROM attendance_intervals WHERE left_at IS NULL").Scan(&open)
+	if open != 0 {
+		panic("open intervals after leave")
+	}
+	stop()
+	mode := "SIGTERM"
+	if *abrupt {
+		mode = "SIGKILL"
+	}
+	fmt.Println("Actual process " + mode + "/restart passed: same accounts/JWT/session/credentials; 110 missed messages in 2 pages; 2 attendance intervals, 2 members, 111 unique messages; host leave keeps meeting active; all intervals close")
+}

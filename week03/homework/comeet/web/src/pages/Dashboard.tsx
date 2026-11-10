@@ -28,16 +28,23 @@ function StaticDashboard() {
           静态测试站未连接业务服务。注册、登录和会议操作请在 Windows
           本机运行前后端后验收。
         </p>
-        <a className="text-button" href={`${import.meta.env.BASE_URL}comeet-source.zip`} download>下载第三阶段源码 ZIP</a>
-        <Link className="text-button" to="/meetings/preview/room">会议室界面预览</Link>
+        <a
+          className="text-button"
+          href={`${import.meta.env.BASE_URL}comeet-source.zip`}
+          download
+        >
+          下载第三阶段源码 ZIP
+        </a>
+        <Link className="text-button" to="/meetings/preview/room">
+          会议室界面预览
+        </Link>
       </section>
-
     </>
   );
 }
 function LiveDashboard() {
   const nav = useNavigate();
-  const location=useLocation();
+  const location = useLocation();
   const [title, setTitle] = useState(""),
     [number, setNumber] = useState(""),
     [creating, setCreating] = useState(false),
@@ -125,7 +132,9 @@ function LiveDashboard() {
   return (
     <>
       <h1>工作台</h1>
-      {location.state?.leaveNotice&&<p role="status">{location.state.leaveNotice}</p>}
+      {location.state?.leaveNotice && (
+        <p role="status">{location.state.leaveNotice}</p>
+      )}
       <div className="actions">
         <form className="card action-card" onSubmit={create}>
           <div className="action-icon">
@@ -266,7 +275,6 @@ function LiveDashboard() {
           </button>
         )}
       </section>
-
     </>
   );
 }
