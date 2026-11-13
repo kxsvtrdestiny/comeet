@@ -212,6 +212,32 @@ func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) 
 		private.Get("/api/v1/media/config", func(w http.ResponseWriter, r *http.Request) {
 			send(w, r, 200, "OK", "success", map[string]bool{"configured": c.MediaConfigured()})
 		})
+		private.Get("/api/v1/meetings/{id}/controls", func(w http.ResponseWriter, r *http.Request) {
+			result, e := hub.PendingControls(r.Context(), identity(r), chi.URLParam(r, "id"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", result)
+		})
+		for _, action := range []string{"mute", "remove", "end"} {
+			path := "/api/v1/meetings/{id}/members/{userId}/" + action
+			if action == "end" {
+				path = "/api/v1/meetings/{id}/end"
+			}
+			private.Post(path, func(w http.ResponseWriter, r *http.Request) {
+				var in realtime.ControlInput
+				if !decode(w, r, &in) {
+					return
+				}
+				result, e := hub.Control(r.Context(), identity(r), chi.URLParam(r, "id"), action, chi.URLParam(r, "userId"), in)
+				if e != nil {
+					fail(w, r, e)
+					return
+				}
+				send(w, r, 200, "OK", "success", result)
+			})
+		}
 		private.Post("/api/v1/meetings/{id}/media-token", func(w http.ResponseWriter, r *http.Request) {
 			var in realtime.SessionInput
 			if !decode(w, r, &in) {

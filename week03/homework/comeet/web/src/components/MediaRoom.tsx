@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Track, type Participant } from "livekit-client";
-import {
-  MediaClient,
-  initialMedia,
-  type MediaState,
-  cameraTrack,
-} from "../services/media";
+import { MediaClient, initialMedia, type MediaState } from "../services/media";
 import { preferences } from "../services/devices";
 import { MicrophoneLevel, outputSupported } from "./DeviceTools";
 export function useMedia(
@@ -44,7 +39,15 @@ export function useMedia(
     stop: () => client.current?.stop(),
   };
 }
-function VideoTrack({ track, local }: { track: Track; local: boolean }) {
+function VideoTrack({
+  track,
+  local,
+  screen,
+}: {
+  track: Track;
+  local: boolean;
+  screen: boolean;
+}) {
   const element = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const el = element.current!;
@@ -60,25 +63,29 @@ function VideoTrack({ track, local }: { track: Track; local: boolean }) {
   return (
     <video
       ref={element}
-      className={local ? "local-video" : ""}
+      className={screen ? "screen-video" : local ? "local-video" : ""}
       autoPlay
       playsInline
       muted
-      aria-label={local ? "本人摄像头" : "成员摄像头"}
+      aria-label={screen ? "共享画面" : local ? "本人摄像头" : "成员摄像头"}
     />
   );
 }
 export function MemberMedia({
   participant,
   local,
+  screen = false,
 }: {
   participant?: Participant;
   local: boolean;
+  screen?: boolean;
 }) {
-  const publication = participant?.getTrackPublication(Track.Source.Camera),
-    track = cameraTrack(participant);
+  const publication = participant?.getTrackPublication(
+      screen ? Track.Source.ScreenShare : Track.Source.Camera,
+    ),
+    track = publication?.track;
   return track && !publication?.isMuted ? (
-    <VideoTrack track={track} local={local} />
+    <VideoTrack track={track} local={local} screen={screen} />
   ) : null;
 }
 function RemoteAudio({ track }: { track: Track }) {

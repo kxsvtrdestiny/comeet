@@ -1,8 +1,8 @@
-# 开发约定 · 第四阶段
+# 开发约定 · 第五阶段
 
-依据 docs/开发规格-v2.0.md。前三阶段已由用户确认验收通过；第四阶段完成后停止等待验收，不开发第五阶段。截图、报错、继续修复不算下一阶段授权。
+依据 docs/开发规格-v2.0.md。第一至第四阶段已由用户确认验收通过；当前仅授权第五阶段共享与会控，完成后停止等待验收，不开发第六阶段或 DeepSeek。截图、报错、继续修复不算下一阶段授权。
 
-所有项目文件在 week03/homework/comeet，未改其他作业。Web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.3.8、React Router 7.18.5、Zustand 5.0.8；Go 1.25.3、chi 5.2.3、jwt/v5 5.3.0、x/crypto 0.43.0、modernc SQLite 1.39.1。精确依赖以锁文件为准。
+所有项目文件在 week03/homework/comeet，未改其他作业。Web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.3.8、React Router 7.18.5、Zustand 5.0.8；Go 1.26.8、chi 5.2.3、jwt/v5 5.3.0、x/crypto 0.43.0、modernc SQLite 1.39.1。精确依赖以锁文件为准。
 
 server/internal/auth：bcrypt/JWT/持久会话/撤销；meeting：会议号、对象权限、游标、幂等创建、原子预留；http：鉴权、中间件、稳定错误码、JSON DTO、限流；store/migrations：单连接 SQLite、WAL/外键/超时、内嵌迁移。003 为追加迁移，不改已应用的 001/002，不清空已有数据。
 
@@ -24,6 +24,15 @@ Go testing/httptest 使用临时真实 SQLite，覆盖认证/对象权限/竞争
 
 真实媒体自动测试单独test:media；普通test:e2e不要求第三方Key，错误分支测试有明确故障注入。当前云Chromium策略禁止非代理WebRTC UDP，真实媒体传输待验证；不能写音视频已联调通过或绕过组织策略。物理设备/Cloud/跨网络验收待用户，第四阶段完成后停止。
 
-## 第四阶段会议室界面调整（待用户验收）
+## 第四阶段会议室界面调整（用户已确认验收通过）
 
 新附件 `docs/Comeet会议室界面修改说明.md` 覆盖原深色/仅宫格约定；运行与人工清单见 `docs/会议室浅色改版验收.md`。真实会议室浅色、默认聚焦、稳定 session+source 本地选画面、成员/聊天默认收起、连接详情与设备对话框。`services/roomView.ts` 为纯 UI 选择规则，不调用媒体连接/发布。媒体 `MediaClient`、WS `RoomClient` 与后端保持原实现；音频统一由独立 AudioSubscriptions 挂载一次。`app/room.css` 在旧全局样式之后加载，限定 live-room 避免改变已验收的其他页面。共享仅预留来源类型，尚无采集/发布。不得自动宣布第四阶段验收通过或进入第五阶段。
+
+
+## 第五阶段实现约定
+
+以本节和 docs/第五阶段运行与验收.md 为当前状态；上文第四阶段的“未开发/待验收”属于历史边界，用户本次已明确验收并授权第五阶段。Go1.26.8、官方 server-sdk-go/v2 2.19.0（含明确 RevokeTokenTs），精确传递依赖见 go.mod/go.sum。屏幕仅发布视频，不发布系统声音；不远程开麦。媒体来源按 session+camera/screenShare 分开，成员列表不重复人数。自动选择共享优先且稳定，手动选择优先级更高。
+
+004 新迁移只加 media_grants 与 moderation_operations，保留已有数据。控制入口 REST 认证并核对 host_user_id，静音由服务端取 Microphone TrackSid；移出先ban/终止业务再媒体清理；结束 active→ending→媒体移出/删房→ended。失败返回非2xx、持久 pending，可从会控结果和会议详情重试；启动执行有界重试，不做第六阶段定时自动结束。网络等待不持 realtime mutex 或 SQLite 事务。一次静音按 UUID 去重，移出/结束按业务目标合并。
+
+分享生命周期测试明确模拟采集和发布传输，普通 E2E 使用真实 Go/SQLite/WS。真实第三方测试在 test:media，包括旧 token 直接重入验证；缺少服务配置时必须记待验证。第四阶段用户验收事实和本阶段云测试证据分别记录，不把前者扩大为本阶段真实 SFU 通过。不要自动进入下一阶段。

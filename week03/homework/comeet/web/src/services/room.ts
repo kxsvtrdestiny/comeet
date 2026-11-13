@@ -47,6 +47,8 @@ export interface RoomState {
   hasOlder: boolean;
   loadingOlder: boolean;
   conflict: boolean;
+  terminalCode?: string;
+  controlNotice?: string;
 }
 interface Frame {
   v: number;
@@ -262,8 +264,15 @@ export class RoomClient {
         status: "syncing",
         notice: "正在补齐聊天记录…",
         conflict: false,
+        terminalCode: undefined,
       });
       void this.sync(p.latestMessageId, epoch);
+      return;
+    }
+    if (event.type === "member.muted") {
+      this.emit({
+        controlNotice: (event.payload as { message: string }).message,
+      });
       return;
     }
     if (event.type.startsWith("member.")) {
@@ -445,6 +454,7 @@ export class RoomClient {
       status: code === "LEFT_MEETING" ? "left" : "error",
       notice: message,
       conflict: code === "ALREADY_JOINED",
+      terminalCode: code,
     });
   }
   send(content: string) {

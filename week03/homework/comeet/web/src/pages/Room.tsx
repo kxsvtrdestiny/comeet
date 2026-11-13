@@ -17,6 +17,8 @@ import {
   Video,
   Copy,
 } from "lucide-react";
+import { useModeration } from "../services/moderation";
+import { ControlFeedback } from "../components/ControlFeedback";
 import { RoomDialog } from "../components/RoomDialog";
 import {
   nextSelection,
@@ -84,6 +86,7 @@ function LiveRoom() {
   const [unread, setUnread] = useState(0);
   const lastMessage = useRef<number | null>(null);
   const panelElement = useRef<HTMLElement>(null);
+  const knownShares = useRef(new Set<string>());
   const media = useMedia(
     id,
     state.sessionId,
@@ -98,6 +101,7 @@ function LiveRoom() {
     setUnread(0);
     lastMessage.current = null;
     setPanel(null);
+    knownShares.current.clear();
     const c = new RoomClient(id, session, setState);
     client.current = c;
     c.start();
@@ -106,31 +110,85 @@ function LiveRoom() {
       if (client.current === c) client.current = null;
     };
   }, [id, session]);
-  const sources = state.members.map((m) => {
+  const members = state.members.map((m) => {
     const local = m.sessionId === state.sessionId;
     const participant = local
       ? media.state.room?.localParticipant
       : media.state.room?.remoteParticipants.get(m.sessionId);
-    const video = participant?.getTrackPublication(Track.Source.Camera);
+    const camera = participant?.getTrackPublication(Track.Source.Camera);
     const mic = participant?.getTrackPublication(Track.Source.Microphone);
     return {
       key: sourceKey(m.sessionId, "camera"),
       participantIdentity: m.sessionId,
       source: "camera" as const,
       local,
-      available: !!video?.track && !video.isMuted,
+      available: !!camera?.track && !camera.isMuted,
       microphone: !!mic?.track && !mic.isMuted,
       participant,
       member: m,
     };
   });
+  const sources = members.flatMap((m) => {
+    const share = m.participant?.getTrackPublication(Track.Source.ScreenShare);
+    const available =
+      media.state.status === "connected" &&
+      !!share?.track &&
+      !share.isMuted &&
+      share.track.mediaStreamTrack.readyState === "live";
+    const recovering =
+      media.state.status === "reconnecting" &&
+      knownShares.current.has(m.participantIdentity);
+    return available || recovering
+      ? [
+          m,
+          {
+            ...m,
+            key: sourceKey(m.member.sessionId, "screenShare"),
+            source: "screenShare" as const,
+            available,
+            recovering,
+          },
+        ]
+      : [m];
+  });
+  useEffect(() => {
+    if (media.state.status === "connected")
+      knownShares.current = new Set(
+        sources
+          .filter((s) => s.source === "screenShare" && s.available)
+          .map((s) => s.participantIdentity),
+      );
+    else if (media.state.status !== "reconnecting") knownShares.current.clear();
+  }, [media.state.status, media.state.revision]);
+  const isHost = state.meeting?.hostUserId === session?.user.id && !!session;
+  const control = useModeration(id, isHost, () => {
+    media.stop();
+    nav("/", { replace: true, state: { leaveNotice: "会议已结束" } });
+  });
+  useEffect(() => {
+    if (
+      state.terminalCode === "REMOVED_FROM_MEETING" ||
+      state.terminalCode === "MEETING_ENDED" ||
+      (state.terminalCode === "MEETING_ENDING" && state.meeting && !isHost)
+    ) {
+      media.stop();
+      nav("/", { replace: true, state: { leaveNotice: state.notice } });
+    }
+  }, [state.terminalCode, state.meeting, isHost, nav]);
   const resolved = nextSelection(selection, sources);
   const main = sources.find((s) => s.key === resolved.key);
   // Only membership/source loss clears a selection; a muted camera remains selectable.
   useEffect(() => {
     if (resolved.key !== selection.key || resolved.mode !== selection.mode) {
       if (selection.mode === "manual")
-        setViewNotice("所选成员已离会，已恢复自动选择");
+        setViewNotice(
+          selection.key &&
+            sources.some(
+              (s) => s.participantIdentity === JSON.parse(selection.key!)[0],
+            )
+            ? "所选共享已停止，已恢复自动选择"
+            : "所选成员已离会，已恢复自动选择",
+        );
       setSelection(resolved);
     }
   }, [resolved.key, resolved.mode, selection.key, selection.mode]);
@@ -225,11 +283,15 @@ function LiveRoom() {
   function tile(s: (typeof sources)[number], thumbnail = false) {
     return (
       <article
-        className={`member-tile ${thumbnail ? "thumbnail" : ""} ${s.key === main?.key ? "selected" : ""}`}
+        className={`member-tile ${s.source === "screenShare" ? "screen-tile" : ""} ${thumbnail ? "thumbnail" : ""} ${s.key === main?.key ? "selected" : ""}`}
         key={s.key}
       >
         {s.member.state === "online" && media.state.status === "connected" && (
-          <MemberMedia participant={s.participant} local={s.local} />
+          <MemberMedia
+            participant={s.participant}
+            local={s.local}
+            screen={s.source === "screenShare"}
+          />
         )}
         {(!s.available ||
           s.member.state !== "online" ||
@@ -248,7 +310,10 @@ function LiveRoom() {
           </div>
         )}
         <div className="tile-caption">
-          <strong>{s.member.displayName}</strong>
+          <strong>
+            {s.member.displayName}
+            {s.source === "screenShare" ? "的共享" : ""}
+          </strong>
           {s.local && <span>本人</span>}
           {s.member.isHost && <span>主持人</span>}
           <span aria-label={s.microphone ? "麦克风开启" : "麦克风关闭"}>
@@ -262,7 +327,7 @@ function LiveRoom() {
         {(thumbnail || layout === "grid") && (
           <button
             className="tile-select"
-            aria-label={`设为主画面：${s.member.displayName}`}
+            aria-label={`设为主画面：${s.member.displayName}${s.source === "screenShare" ? "的共享" : ""}`}
             onClick={() => select(s.key)}
           >
             <Maximize2 size={14} />
@@ -341,11 +406,17 @@ function LiveRoom() {
               role="alert"
             >
               <span>{state.notice}</span>
-              {!state.conflict && state.status !== "left" && (
-                <button onClick={() => client.current?.rejoin()}>
-                  重新加入
-                </button>
-              )}
+              {!state.conflict &&
+                state.status !== "left" &&
+                ![
+                  "MEETING_ENDING",
+                  "MEETING_ENDED",
+                  "REMOVED_FROM_MEETING",
+                ].includes(state.terminalCode || "") && (
+                  <button onClick={() => client.current?.rejoin()}>
+                    重新加入
+                  </button>
+                )}
               {state.conflict && <span>请返回原标签页，或关闭本标签页。</span>}
             </section>
           ) : (
@@ -388,6 +459,12 @@ function LiveRoom() {
                 播放会议声音
               </button>
             )}
+          {state.controlNotice && (
+            <p className="view-notice" role="status">
+              {state.controlNotice}
+            </p>
+          )}
+          {isHost && <ControlFeedback control={control} />}
           {viewNotice && (
             <p className="view-notice" role="status">
               {viewNotice}
@@ -469,7 +546,7 @@ function LiveRoom() {
                 </div>
                 {panel === "members" ? (
                   <ul className="member-list">
-                    {sources.map((s) => (
+                    {members.map((s) => (
                       <li key={s.key}>
                         <strong>{s.member.displayName}</strong>
                         {s.local && <span>本人</span>}
@@ -487,6 +564,37 @@ function LiveRoom() {
                         >
                           设为主画面：{s.member.displayName}
                         </button>
+                        {sources
+                          .filter(
+                            (v) =>
+                              v.participantIdentity === s.participantIdentity &&
+                              v.source === "screenShare",
+                          )
+                          .map((v) => (
+                            <button key={v.key} onClick={() => select(v.key)}>
+                              查看{s.member.displayName}的共享
+                            </button>
+                          ))}
+                        {isHost && !s.member.isHost && (
+                          <>
+                            <button
+                              disabled={control.busy}
+                              onClick={() =>
+                                void control.run("mute", s.member.userId)
+                              }
+                            >
+                              静音：{s.member.displayName}
+                            </button>
+                            <button
+                              disabled={control.busy}
+                              onClick={() =>
+                                control.confirm("remove", s.member.userId)
+                              }
+                            >
+                              移出：{s.member.displayName}
+                            </button>
+                          </>
+                        )}
                       </li>
                     ))}
                     {!sources.length && <li>尚未取得成员快照</li>}
@@ -602,6 +710,36 @@ function LiveRoom() {
         </div>
       </div>
       <footer className="toolbar">
+        <button
+          disabled={
+            media.state.status !== "connected" || media.state.sharingBusy
+          }
+          onClick={() => {
+            if (media.state.screenSharing || media.state.sharingCleanupPending)
+              void media.client?.stopScreenShare();
+            else void media.client?.startScreenShare();
+          }}
+        >
+          <Monitor size={18} />
+          {media.state.sharingCleanupPending
+            ? "重试停止共享"
+            : media.state.screenSharing
+              ? "停止共享"
+              : media.state.sharingBusy
+                ? "正在选择共享…"
+                : "共享屏幕"}
+        </button>
+        {isHost && (
+          <button
+            disabled={control.busy}
+            onClick={() => control.confirm("end")}
+          >
+            结束会议
+          </button>
+        )}
+        {state.terminalCode === "MEETING_ENDING" && (
+          <Link to={`/meetings/${id}`}>会议详情/重试结束</Link>
+        )}
         <button
           disabled={media.state.status !== "connected" || media.state.busy}
           onClick={() =>

@@ -33,6 +33,9 @@ export interface MediaState {
   error: string;
   microphone: boolean;
   camera: boolean;
+  screenSharing: boolean;
+  sharingBusy: boolean;
+  sharingCleanupPending: boolean;
 }
 export const initialMedia: MediaState = {
   status: "idle",
@@ -44,6 +47,9 @@ export const initialMedia: MediaState = {
   error: "",
   microphone: false,
   camera: false,
+  screenSharing: false,
+  sharingBusy: false,
+  sharingCleanupPending: false,
 };
 // One owner per mounted room. Deferred start and synchronous invalidation make StrictMode safe.
 export class MediaClient {
@@ -55,6 +61,8 @@ export class MediaClient {
   private abort = new AbortController();
   private state = { ...initialMedia };
   private busy = false;
+  private shareEpoch = 0;
+  private screenTrack: LocalVideoTrack | null = null;
   constructor(
     private meetingId: string,
     private sessionId: string,
@@ -75,6 +83,8 @@ export class MediaClient {
     track.stop();
   }
   private releaseTracks() {
+    this.shareEpoch++;
+    this.screenTrack = null;
     for (const track of this.owned.keys()) this.stopOwned(track);
     this.room?.remoteParticipants.forEach((participant) =>
       participant.trackPublications.forEach((p) =>
@@ -141,6 +151,7 @@ export class MediaClient {
           room,
           microphone: room.localParticipant.isMicrophoneEnabled,
           camera: room.localParticipant.isCameraEnabled,
+          screenSharing: room.localParticipant.isScreenShareEnabled,
           playbackBlocked: !room.canPlaybackAudio,
         });
       for (const event of [
@@ -155,6 +166,18 @@ export class MediaClient {
         RoomEvent.AudioPlaybackStatusChanged,
       ])
         room.on(event, refresh);
+      room.on(RoomEvent.TrackMuted, (publication, participant) => {
+        if (
+          participant === room.localParticipant &&
+          publication.source === Track.Source.Microphone
+        ) {
+          savePreferences({ ...preferences(), microphone: false });
+          this.update({
+            microphone: false,
+            notice: "麦克风已静音，可自行重新开启",
+          });
+        }
+      });
       room.on(RoomEvent.ConnectionStateChanged, (value: ConnectionState) => {
         if (value === ConnectionState.Connected)
           this.update({ status: "connected", notice: "媒体已连接" });
@@ -174,6 +197,8 @@ export class MediaClient {
           notice: "媒体已断开，可重试连接或继续文字会议",
           microphone: false,
           camera: false,
+          screenSharing: false,
+          sharingBusy: false,
         });
       });
       room.on(RoomEvent.MediaDevicesError, () =>
@@ -232,7 +257,10 @@ export class MediaClient {
           this.stopOwned(existing);
           await room.localParticipant.unpublishTrack(existing, true);
         }
-      } else if (!existing) {
+      } else if (existing) {
+        // A host mute is a one-shot mute, never a publish-permission lock.
+        await existing.unmute();
+      } else {
         const prefs = preferences();
         const deviceId =
           kind === "microphone" ? prefs.audioInput : prefs.videoInput;
@@ -307,6 +335,107 @@ export class MediaClient {
       this.busy = false;
       if (this.disposed) this.releaseTracks();
       else this.update({ busy: false });
+    }
+  }
+  // Called directly from a button handler: getDisplayMedia starts before any await.
+  async startScreenShare() {
+    const room = this.room;
+    if (
+      this.disposed ||
+      !room ||
+      room.state !== ConnectionState.Connected ||
+      this.state.sharingBusy ||
+      this.screenTrack
+    )
+      return;
+    const epoch = ++this.shareEpoch;
+    this.update({ sharingBusy: true, error: "" });
+    let stream: MediaStream | undefined;
+    let track: LocalVideoTrack | undefined;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 15 },
+        audio: false,
+      });
+      if (
+        this.disposed ||
+        epoch !== this.shareEpoch ||
+        room.state !== ConnectionState.Connected
+      ) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      const raw = stream.getVideoTracks()[0];
+      if (!raw || raw.readyState === "ended") {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      // This stage shares video only; an unexpected audio track is never published.
+      stream.getAudioTracks().forEach((t) => t.stop());
+      track = new LocalVideoTrack(raw, undefined, true);
+      track.source = Track.Source.ScreenShare;
+      const ended = () => {
+        void this.stopScreenShare();
+      };
+      raw.addEventListener("ended", ended);
+      this.owned.set(track, () => raw.removeEventListener("ended", ended));
+      this.screenTrack = track;
+      await room.localParticipant.publishTrack(track, {
+        source: Track.Source.ScreenShare,
+        simulcast: false,
+        videoEncoding: { maxBitrate: 3000000, maxFramerate: 15 },
+      });
+      if (
+        this.disposed ||
+        epoch !== this.shareEpoch ||
+        (raw.readyState as string) === "ended"
+      ) {
+        this.stopOwned(track);
+        await room.localParticipant.unpublishTrack(track, true);
+        return;
+      }
+      this.update({ screenSharing: true });
+    } catch (e) {
+      if (track) {
+        this.stopOwned(track);
+        if (this.screenTrack === track) this.screenTrack = null;
+        await room.localParticipant.unpublishTrack(track, true).catch(() => {});
+      }
+      stream?.getTracks().forEach((t) => t.stop());
+      if (
+        !this.disposed &&
+        epoch === this.shareEpoch &&
+        (e as Error).name !== "NotAllowedError" &&
+        (e as Error).name !== "AbortError"
+      )
+        this.update({ error: "共享未能启动，请检查屏幕录制权限或重试。" });
+    } finally {
+      if (epoch === this.shareEpoch)
+        this.update({ sharingBusy: false, screenSharing: !!this.screenTrack });
+      if (this.disposed) this.releaseTracks();
+    }
+  }
+  async stopScreenShare() {
+    ++this.shareEpoch;
+    const track = this.screenTrack;
+    this.screenTrack = null;
+    if (track) this.stopOwned(track);
+    this.update({
+      screenSharing: false,
+      sharingBusy: false,
+      sharingCleanupPending: false,
+    });
+    if (track && this.room) {
+      try {
+        await this.room.localParticipant.unpublishTrack(track, true);
+      } catch {
+        if (!this.disposed) this.screenTrack = track;
+        this.update({
+          sharingCleanupPending: true,
+          error:
+            "本地共享已停止，但发布清理失败，请重试停止共享或重新连接音视频。",
+        });
+      }
     }
   }
   async switchDevice(kind: MediaDeviceKind, id: string) {

@@ -1,12 +1,14 @@
-# Comeet · 第四阶段
+# Comeet · 第五阶段
 
-前三阶段已由用户明确人工验收通过。第四阶段代码实现 LiveKit token、设备准备和音视频发布/订阅，等待用户验收；真实设备、跨网络音视频待验证。未开发屏幕共享、主持人媒体会控或 DeepSeek。
+第一至第四阶段已由用户明确人工验收通过。当前第五阶段实现真实屏幕共享、多来源主画面及主持人一次静音/移出/结束，等待本阶段用户验收。未开发第六阶段或 DeepSeek。
 
-源码分支 stage4-review，项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
+**本阶段新增运行要求：Go >=1.26.8，Node.js 24。完整 Windows 更新命令、双账号检查与媒体边界见 [第五阶段运行与验收](docs/第五阶段运行与验收.md)。保留原 server/.env 和 server/data。**
+
+源码分支 stage5-review，项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
 
 ## Windows 更新源码
 
-先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage4-review.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有003迁移保留，本阶段无需清库或运行新SQL。
+先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage5-review.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有001–003迁移保留；本阶段启动自动追加004迁移，无需清库或手工运行SQL。
 
 以下命令按用户现有目录 `D:\comeet-stage1-review\week03\homework\comeet` 编写；文件夹名带 stage1 不影响代码版本。若换了解压位置，替换命令路径即可。Pages 独立源码 ZIP 只含 comeet 文件夹。
 
@@ -46,7 +48,7 @@ go run ./cmd/server -env-file .env -init-env
 go run ./cmd/server -env-file .env
 ```
 
-`-init-env`仅创建缺失文件/空JWT密钥，保留已有合格密钥及其他配置，不会打印秘密。看到server_start、stage=4后保持终端运行。后续启动通常只执行最后一行。显式-env-file才读文件，系统环境优先；不要旋转JWT_SECRET或删除data。
+`-init-env`仅创建缺失文件/空JWT密钥，保留已有合格密钥及其他配置，不会打印秘密。看到server_start、stage=5后保持终端运行。后续启动通常只执行最后一行。显式-env-file才读文件，系统环境优先；不要旋转JWT_SECRET或删除data。
 
 ## 终端 B：前端 PowerShell（另开，保持开启）
 
@@ -69,7 +71,7 @@ A使用Chrome，B使用Edge或独立隐私窗口，各自登录。两端戴耳�
 - 会议底部独立开关麦克风/摄像头；右侧“音视频设置”可切换设备、查看电平和重试媒体。浏览器阻止声音时点“点击启用声音”。本地视频始终静音，远端每条麦克风只挂载一个音频元素。
 - 业务短暂重连不会重复连接媒体；媒体故障不关闭业务聊天。45秒业务恢复到期/登录失效会停止媒体。SDK自身媒体重连失败可手动重试。
 - 离会按钮、返回工作台、路由跳转、登录失效、关闭/刷新页面会释放媒体；正常页面浏览器返回后若从缓存恢复会议页，会刷新验证会话。离会不等于结束整场会议。
-- 未开发共享/会控/AI，相关按钮仍禁用。工作台不展示开发诊断，左侧设置可读真实服务状态。
+- 本阶段已启用屏幕共享和主持人一次静音/移出/结束；DeepSeek 仍未开发。工作台不展示开发诊断，左侧设置可读真实服务状态。
 
 ## 终端 C：自动检查（另开 PowerShell）
 
@@ -108,4 +110,4 @@ test:e2e覆盖前三阶段与设备错误分支，媒体token缺配置的测试�
 - 新源码未生效：确认覆盖src及package-lock.json，停止前端，npm.cmd ci后重启，浏览器Ctrl+F5。
 - Pages https://kxsvtrdestiny.github.io/comeet/#/ 只作静态界面预览，不运行Go、SQLite、业务WS或LiveKit，必须本机验收。
 
-具体双账号清单见 docs/手工测试.md。**第四阶段完成后停止，等待用户人工验收，不进入第五阶段。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。
+当前具体双账号清单见 docs/第五阶段运行与验收.md，历史清单见 docs/手工测试.md。**第五阶段完成后停止，等待用户人工验收，不进入第六阶段或 DeepSeek。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。

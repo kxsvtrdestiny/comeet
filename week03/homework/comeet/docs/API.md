@@ -77,3 +77,17 @@ GET /api/v1/media/config：已登录可读，返回 `{configured:boolean}`，不
 POST /api/v1/meetings/:id/media-token：Bearer JWT，输入仅 `{sessionId}`。检查该会话归属当前user/sid/会议、会议active、未封禁、真实online及活动peer/generation，未正式入会返回409 BUSINESS_NOT_CONNECTED；缺配置503 MEDIA_NOT_CONFIGURED，文字业务不受影响。成功返回 `{url,token,expiresAt,identity,room}` 并Cache-Control:no-store；服务端不记录token。
 
 JWT HS256，iss=LiveKit API Key，sub=参会sessionId，name/metadata取服务端；video grant仅roomJoin、指定内部会议room、camera/microphone发布和订阅。canPublishData/canUpdateOwnMetadata=false，无roomAdmin/共享/建房权限。TTL最大5分钟且受请求JWT/库内登录期限约束。具体授权有效期及已建立连接边界见LiveKit.md。第四阶段不调用管理API，不声称token过期会自动踢出现有连接。
+
+
+## 第五阶段共享与会控
+
+媒体 token 新增 screen_share 发布源（不含 screen_share_audio），仍只绑定服务器生成的当前在线参会 sessionId，无 roomAdmin。
+
+- POST `/api/v1/meetings/:id/members/:userId/mute`：主持人一次静音；请求 `{ "requestId": "UUID" }`，服务端查询麦克风 TrackSid。没有麦克风返回 409 MICROPHONE_NOT_PUBLISHED；不接受客户端 sid/muted/role，不远程开麦。
+- POST `/api/v1/meetings/:id/members/:userId/remove`：同上请求，持久封禁本场并终止目标会话，完成媒体移出后才返回 OK。
+- POST `/api/v1/meetings/:id/end`：同上请求，主持人可以离会后调用。先 ending，媒体清理成功才 ended。重试使用原 requestId，刷新后也可使用持久操作 ID。
+- GET `/api/v1/meetings/:id/controls`：仅主持人，返回 pending 数组 `{ id, action, targetUserId }`，支持刷新后重试。
+
+成功 data 为 `{operationId,state:"completed"}`。普通成员 403 HOST_REQUIRED；媒体依赖失败 502 MEDIA_CONTROL_FAILED、缺配置 503 MEDIA_NOT_CONFIGURED；均不当作成功。移出后 join/resume/ws-ticket/media-token 拒绝；ending/ended 同样拒绝加入/恢复/授权。重复成功操作幂等，operationId 与其他参数冲突返回 409 REQUEST_CONFLICT。已提交业务状态不会因媒体失败回滚。
+
+目标成功静音收到 `member.muted`，payload `{message:"主持人已将你静音，你可以自行开麦"}`。移出收到 REMOVED_FROM_MEETING，结束中收到 MEETING_ENDING 并停止媒体；主持人保留结束重试入口，其他成员返回工作台。Go→LiveKit 使用有界超时和明确撤销截止时间，真实旧 token 撤销以所用 Cloud 服务验收为准。

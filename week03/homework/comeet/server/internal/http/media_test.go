@@ -42,8 +42,8 @@ func TestMediaTokenBoundToOnlineSessionAndMinimalGrants(t *testing.T) {
 		t.Fatal("excess grant", g)
 	}
 	sources := g["canPublishSources"].([]any)
-	if len(sources) != 2 || sources[0] != "camera" || sources[1] != "microphone" {
-		t.Fatal("screen/admin permission granted")
+	if len(sources) != 3 || sources[0] != "camera" || sources[1] != "microphone" || sources[2] != "screen_share" {
+		t.Fatal("unexpected source/admin permission granted")
 	}
 	exp, _ := claims.GetExpirationTime()
 	if exp.Time.After(time.Now().Add(5*time.Minute)) || !exp.Time.After(time.Now()) {

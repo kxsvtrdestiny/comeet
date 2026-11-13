@@ -119,14 +119,18 @@ func (c *socketClient) wait(kind string) realtime.Event {
 				return e
 			}
 		case <-c.done:
-			select {
-			case e := <-c.events:
-				if e.Type == kind {
-					return e
+			// A closed socket may still have multiple buffered events before its
+			// terminal error. Drain them instead of failing on the first update.
+			for {
+				select {
+				case e := <-c.events:
+					if e.Type == kind {
+						return e
+					}
+				default:
+					c.t.Fatalf("socket closed waiting %s", kind)
 				}
-			default:
 			}
-			c.t.Fatalf("socket closed waiting %s", kind)
 		case <-timer.C:
 			c.t.Fatalf("timeout waiting %s", kind)
 		}

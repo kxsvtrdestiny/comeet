@@ -49,10 +49,13 @@ func (s *Service) MediaToken(ctx context.Context, id auth.Identity, meetingID st
 	claims := jwt.MapClaims{
 		"iss": s.Config.LivekitKey, "sub": v.ID, "name": p.name, "metadata": string(metadata),
 		"iat": now.Unix(), "nbf": now.Add(-5 * time.Second).Unix(), "exp": expiry.Unix(),
-		"video": map[string]any{"roomJoin": true, "room": meetingID, "canPublish": true, "canSubscribe": true, "canPublishData": false, "canUpdateOwnMetadata": false, "canPublishSources": []string{"camera", "microphone"}},
+		"video": map[string]any{"roomJoin": true, "room": meetingID, "canPublish": true, "canSubscribe": true, "canPublishData": false, "canUpdateOwnMetadata": false, "canPublishSources": []string{"camera", "microphone", "screen_share"}},
 	}
 	token, e := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.Config.LivekitSecret))
 	if e != nil {
+		return MediaResult{}, e
+	}
+	if _, e = s.DB.ExecContext(ctx, "INSERT INTO media_grants(session_id,meeting_id,expires_at) VALUES (?,?,?) ON CONFLICT(session_id) DO UPDATE SET expires_at=MAX(expires_at,excluded.expires_at)", v.ID, meetingID, expiry.UnixMilli()); e != nil {
 		return MediaResult{}, e
 	}
 	return MediaResult{s.Config.LivekitWS, token, expiry.UnixMilli(), v.ID, meetingID}, nil

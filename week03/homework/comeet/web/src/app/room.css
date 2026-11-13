@@ -543,3 +543,30 @@
     flex-basis: 80px;
   }
 }
+
+/* Screen content must remain complete and never mirrored, including thumbnails. */
+.live-room .screen-tile video,
+.live-room .thumbnail.screen-tile video {
+  object-fit: contain;
+  transform: none;
+}
+.live-room .control-feedback {
+  font-size: 12px;
+  padding: 0 16px;
+}
+.control-feedback:empty {
+  display: none;
+}
+.control-feedback p {
+  margin: 6px 0;
+}
+.control-feedback [role="alert"] {
+  color: #a8323f;
+}
+.control-feedback > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}

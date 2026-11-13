@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "../tests/e2e",
   workers: 2,
-  testIgnore: ["**/stage4-media.spec.ts"],
+  testIgnore: ["**/stage4-media.spec.ts", "**/stage5-media.spec.ts"],
   reporter: "list",
   use: {
     baseURL: "http://localhost:5173",

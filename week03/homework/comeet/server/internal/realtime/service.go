@@ -22,14 +22,17 @@ const TicketTTL = 30 * time.Second
 const QueueSize = 64
 
 type Service struct {
-	DB      *sql.DB
-	Config  config.Config
-	mu      sync.Mutex
-	peers   map[string]*peer
-	tickets map[[32]byte]ticket
-	closed  bool
-	cancel  context.CancelFunc
-	done    chan struct{}
+	controlDone chan struct{}
+	MediaAdmin  MediaAdmin
+	controlMu   sync.Mutex
+	DB          *sql.DB
+	Config      config.Config
+	mu          sync.Mutex
+	peers       map[string]*peer
+	tickets     map[[32]byte]ticket
+	closed      bool
+	cancel      context.CancelFunc
+	done        chan struct{}
 }
 type ticket struct {
 	Identity             auth.Identity
@@ -220,7 +223,15 @@ func (s *Service) Start() {
 	s.cancel = cancel
 	s.done = make(chan struct{})
 	done := s.done
+	s.controlDone = make(chan struct{})
+	controlDone := s.controlDone
 	s.mu.Unlock()
+	go func() {
+		defer close(controlDone)
+		retryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		_ = s.RetryControls(retryCtx)
+	}()
 	go func() {
 		defer close(done)
 		ticker := time.NewTicker(time.Second)
@@ -257,11 +268,12 @@ func (s *Service) Shutdown() {
 		}
 	}
 	s.tickets = map[[32]byte]ticket{}
-	cancel, done := s.cancel, s.done
+	cancel, done, controlDone := s.cancel, s.done, s.controlDone
 	s.mu.Unlock()
 	if cancel != nil {
 		cancel()
 		<-done
+		<-controlDone
 	}
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
@@ -348,6 +360,8 @@ func (s *Service) sweepLocked(ctx context.Context, now int64) error {
 			message = "登录已失效，请重新登录"
 		} else if v.Banned {
 			code, message = "REMOVED_FROM_MEETING", "你已被移出本场会议"
+		} else if v.MeetingStatus == "ending" {
+			code, message = "MEETING_ENDING", "主持人正在结束会议"
 		} else if v.MeetingStatus != "active" {
 			code, message = "MEETING_ENDED", "会议已结束"
 		}

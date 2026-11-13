@@ -1,3 +1,6 @@
+import { useModeration } from "../services/moderation";
+import { ControlFeedback } from "../components/ControlFeedback";
+import { useAuth } from "../stores/auth";
 import { Link, useParams } from "react-router-dom";
 import { useRemote } from "../services/useRemote";
 import {
@@ -10,6 +13,9 @@ export default function MeetingDetail() {
   const { data, loading, error, retry } = useRemote<Meeting>(
     staticPreview ? null : `/meetings/${encodeURIComponent(id || "")}`,
   );
+  const session = useAuth((s) => s.session);
+  const host = !!data && data.hostUserId === session?.user.id;
+  const control = useModeration(id || "", host, retry);
   return (
     <>
       <Link to="/">返回工作台</Link>
@@ -40,6 +46,22 @@ export default function MeetingDetail() {
                   ? "结束中"
                   : "已结束"}
             </p>
+            {host && data.status !== "ended" && (
+              <>
+                <ControlFeedback control={control} />
+                {!control.pending.some((op) => op.action === "end") && (
+                  <button
+                    className="button"
+                    disabled={control.busy}
+                    onClick={() => control.confirm("end")}
+                  >
+                    {data.status === "ending"
+                      ? "重试结束会议"
+                      : "结束所有人的会议"}
+                  </button>
+                )}
+              </>
+            )}
             {data.status === "active" && (
               <Link to={`/meetings/${data.id}/prepare`}>前往入会准备</Link>
             )}

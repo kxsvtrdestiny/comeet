@@ -77,7 +77,7 @@ func Router(db *sql.DB, c config.Config, realtimeServices ...*realtime.Service) 
 			send(w, r, 503, "DATABASE_UNAVAILABLE", "数据库暂不可用", nil)
 			return
 		}
-		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 4})
+		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 5})
 	})
 	business(r, db, c, hub)
 	r.Get("/ws", hub.WS)
