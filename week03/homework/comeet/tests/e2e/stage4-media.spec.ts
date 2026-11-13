@@ -51,12 +51,15 @@ async function setup(c: BrowserContext, s: any) {
   return c.newPage();
 }
 async function connected(p: Page) {
-  await expect(p.locator(".connection-status")).toHaveText("业务已连接", {
+  await p.getByRole("button", { name: "连接详情", exact: true }).click();
+  await expect(p.locator(".connection-status")).toContainText("业务已连接", {
     timeout: 15000,
   });
-  await expect(p.locator(".media-status")).toHaveText("媒体已连接", {
+  await expect(p.getByRole("dialog")).toContainText("音视频连接：正常", {
     timeout: 20000,
   });
+  await p.getByRole("button", { name: "关闭对话框" }).click();
+  await p.locator(".toolbar").getByRole("button", { name: /^聊天/ }).click();
 }
 async function inbound(p: Page) {
   return p.evaluate(async () => {
@@ -219,8 +222,11 @@ test("media unavailable keeps actual business chat usable", async ({
       }),
     );
     await p.goto("/meetings/" + m.id + "/room");
-    await expect(p.locator(".connection-status")).toHaveText("业务已连接");
-    await expect(p.locator(".media-status")).toContainText("媒体未配置");
+    await p.getByRole("button", { name: "连接详情", exact: true }).click();
+    await expect(p.locator(".connection-status")).toContainText("业务已连接");
+    await p.getByRole("button", { name: "关闭对话框" }).click();
+    await expect(p.locator(".room-notice")).toContainText("音视频尚未配置");
+    await p.locator(".toolbar").getByRole("button", { name: /^聊天/ }).click();
     await p.locator("textarea").fill("媒体失败不影响文字");
     await p.getByRole("button", { name: "发送", exact: true }).click();
     await expect(

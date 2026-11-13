@@ -23,3 +23,7 @@ Go testing/httptest 使用临时真实 SQLite，覆盖认证/对象权限/竞争
 第四阶段新增realtime/media.go及在线会话媒体授权，使用已有jwt/v5按官方LiveKit字段签名。客户端锁定livekit-client2.23.0。设备准备用独立gUM、代次取消迟到结果；进入前停止准备轨道，SDK重新采集。MediaClient以当前参会sessionId为唯一身份，StrictMode延迟启动、终止标记、串行断开、有限监听和detach清理；音视频错误不终止业务WS。deviceTools负责AnalyserNode与试听AudioContext释放。
 
 真实媒体自动测试单独test:media；普通test:e2e不要求第三方Key，错误分支测试有明确故障注入。当前云Chromium策略禁止非代理WebRTC UDP，真实媒体传输待验证；不能写音视频已联调通过或绕过组织策略。物理设备/Cloud/跨网络验收待用户，第四阶段完成后停止。
+
+## 第四阶段会议室界面调整（待用户验收）
+
+新附件 `docs/Comeet会议室界面修改说明.md` 覆盖原深色/仅宫格约定；运行与人工清单见 `docs/会议室浅色改版验收.md`。真实会议室浅色、默认聚焦、稳定 session+source 本地选画面、成员/聊天默认收起、连接详情与设备对话框。`services/roomView.ts` 为纯 UI 选择规则，不调用媒体连接/发布。媒体 `MediaClient`、WS `RoomClient` 与后端保持原实现；音频统一由独立 AudioSubscriptions 挂载一次。`app/room.css` 在旧全局样式之后加载，限定 live-room 避免改变已验收的其他页面。共享仅预留来源类型，尚无采集/发布。不得自动宣布第四阶段验收通过或进入第五阶段。

@@ -55,9 +55,16 @@ async function meeting(request: APIRequestContext) {
   return (await r.json()).data as Meeting;
 }
 async function connected(page: Page) {
-  await expect(page.locator(".connection-status")).toHaveText("业务已连接", {
+  await page.getByRole("button", { name: "连接详情", exact: true }).click();
+  await expect(page.locator(".connection-status")).toContainText("业务已连接", {
     timeout: 15000,
   });
+  await page.getByRole("button", { name: "关闭对话框" }).click();
+  if (!(await page.getByLabel("消息", { exact: true }).count()))
+    await page
+      .locator(".toolbar")
+      .getByRole("button", { name: /^聊天/ })
+      .click();
 }
 async function enter(c: BrowserContext, m: Meeting) {
   const p = await c.newPage();
@@ -114,7 +121,7 @@ test("two real browsers: members, identity markers, bidirectional chat, XSS and 
     await pb.getByRole("button", { name: "离开会议", exact: true }).click();
     await expect(pb).toHaveURL(/\/$/);
     await expect(pa.locator(".member-tile")).toHaveCount(1);
-    await expect(pa.locator(".connection-status")).toHaveText("业务已连接");
+    await connected(pa);
   } finally {
     await ca.close();
     await cb.close();
@@ -145,12 +152,11 @@ test("duplicated tab never takes over healthy original connection", async ({
     }, saved);
     const pc = await duplicate.newPage();
     await pc.goto(`http://localhost:5173/meetings/${m.id}/room`);
-    await expect(pc.locator(".connection-status")).toContainText(
-      "原连接仍在线",
-      {
-        timeout: 8000,
-      },
-    );
+    await expect(
+      pc.locator('.room-notice[data-channel="business"]'),
+    ).toContainText("原连接仍在线", {
+      timeout: 8000,
+    });
     await connected(pa);
     await send(pb, "原连接仍可接收");
     await expect(
@@ -217,7 +223,9 @@ test("offline recovery catches more than 100 missed messages and history pages",
       if (r.url().includes("/messages?afterId=")) catchup.push(r.url());
     });
     await cb.setOffline(true);
-    await expect(pb.locator(".connection-status")).toContainText("重连");
+    await expect(
+      pb.locator('.room-notice[data-channel="business"]'),
+    ).toContainText("重连");
     await expect(
       pa.locator(".member-tile").filter({ hasText: "成员 B" }),
     ).toContainText("重连中");

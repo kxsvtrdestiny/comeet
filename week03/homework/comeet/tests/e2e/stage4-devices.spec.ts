@@ -162,6 +162,7 @@ for (const [name, message] of [
       await page
         .getByRole("button", { name: "开启麦克风", exact: true })
         .click();
+      await expect(page.getByRole("button", { name: "关闭麦克风", exact: true })).toBeVisible();
       await page
         .getByRole("button", { name: "开启摄像头", exact: true })
         .click();
@@ -179,8 +180,11 @@ for (const [name, message] of [
       await page
         .getByRole("button", { name: "仅聊天参会", exact: true })
         .click();
-      await expect(page.locator(".connection-status")).toHaveText("业务已连接");
-      await expect(page.locator(".media-status")).toContainText("媒体未配置");
+      await page.getByRole("button", { name: "连接详情", exact: true }).click();
+      await expect(page.locator(".connection-status")).toContainText("业务已连接");
+      await page.getByRole("button", { name: "关闭对话框" }).click();
+      await page.locator(".toolbar").getByRole("button", { name: /^聊天/ }).click();
+      await expect(page.locator(".room-notice")).toContainText("音视频尚未配置");
       expect(
         await page.evaluate(() =>
           (window as any).captured.every((t: any) => t.readyState === "ended"),

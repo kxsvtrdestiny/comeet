@@ -1,0 +1,545 @@
+/* Stage 4 room: viewport owns the layout; lists own their scrolling. */
+.live-room {
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f5f7fb;
+  color: #1f2937;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.live-room button,
+.room-dialog button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.live-room button:disabled {
+  color: #64748b;
+  background: #f1f5f9;
+  cursor: default;
+}
+.live-room button[aria-pressed="true"] {
+  color: #3544bc;
+  background: #edf0ff;
+  border-color: #a4aff4;
+}
+.live-room button:focus-visible,
+.room-dialog button:focus-visible {
+  outline: 3px solid #4f5fe8;
+  outline-offset: 2px;
+}
+.live-room .room-header {
+  min-width: 0;
+  min-height: 56px;
+  padding: 6px 16px;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: white;
+}
+.room-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.live-room .room-header h1 {
+  margin: 0;
+  font-size: 17px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.live-room .meeting-number {
+  flex-shrink: 0;
+  border: 0;
+  padding: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+.room-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.room-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.room-alerts {
+  flex-shrink: 0;
+  max-height: 30vh;
+  overflow: auto;
+}
+.live-room .room-notice,
+.live-room .view-notice {
+  margin: 6px 16px 0;
+  padding: 7px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid #efdab2;
+  background: #fff7e8;
+  color: #805313;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.live-room .view-notice {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3544bc;
+}
+.live-room .audio-unlock {
+  margin: 6px 16px;
+  color: #3544bc;
+}
+.live-room .room-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.live-room .room-body.has-panel {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.live-room .room-stage {
+  padding: 10px 14px 14px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  text-align: left;
+}
+.view-mode {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 28px;
+  gap: 8px;
+}
+.live-room .view-mode span {
+  color: #64748b;
+  font-size: 12px;
+}
+.live-room .view-mode button {
+  font-size: 12px;
+  padding: 3px 8px;
+}
+.main-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.live-room .member-tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #edf1f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.live-room .main-view > .member-tile {
+  width: 100%;
+  height: 100%;
+}
+.live-room .member-tile.selected {
+  border: 2px solid #6574ea;
+}
+.live-room .member-tile video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+  background: #edf1f7;
+  border-radius: 0;
+  position: absolute;
+  inset: 0;
+}
+.live-room .member-tile .local-video {
+  transform: scaleX(-1);
+}
+.camera-placeholder {
+  text-align: center;
+}
+.live-room .avatar {
+  background: #dce5f5;
+  color: #415281;
+}
+.live-room .camera-placeholder p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 8px 0;
+}
+.live-room .tile-caption {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  background: #fffffff2;
+  color: #334155;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+.tile-caption strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.live-room .tile-caption span {
+  color: #475569;
+  font-size: 11px;
+  flex-shrink: 0;
+  display: flex;
+}
+.live-room .tile-select {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: transparent;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+.live-room .tile-select svg {
+  color: #475569;
+  background: white;
+  border-radius: 3px;
+}
+.live-room .tile-select:focus-visible {
+  outline-offset: -4px;
+}
+.thumbnail-strip {
+  display: flex;
+  flex: 0 0 108px;
+  gap: 10px;
+  overflow-x: auto;
+  min-height: 0;
+  padding-bottom: 3px;
+}
+.live-room .thumbnail {
+  flex: 0 0 176px;
+  height: 100%;
+}
+.live-room .thumbnail video {
+  object-fit: cover;
+}
+.live-room .thumbnail .avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+.live-room .thumbnail .camera-placeholder p {
+  margin: 3px 0 22px;
+  font-size: 11px;
+}
+.live-room .member-grid {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+.live-room .member-grid[data-count="1"] {
+  grid-template-columns: 1fr;
+}
+.live-room .member-grid[data-count="5"],
+.live-room .member-grid[data-count="6"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.live-room .empty-media {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+}
+.live-room .empty-media h2 {
+  color: #475569;
+  font-size: 18px;
+}
+.live-room .room-panel {
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid #e2e8f0;
+  border-radius: 0;
+  padding: 0 12px 12px;
+  background: white;
+  color: #334155;
+  overflow: hidden;
+}
+.live-room .tabs {
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
+  align-items: center;
+}
+.live-room .tabs button {
+  font-size: 12px;
+  padding: 10px 4px;
+  border: 0;
+  background: white;
+  color: #475569;
+}
+.live-room .tabs button[aria-pressed="true"] {
+  color: #4f5fe8;
+  border-bottom: 2px solid #4f5fe8;
+}
+.live-room .tabs button:last-child {
+  margin-left: auto;
+}
+.live-room .member-list {
+  overflow-y: auto;
+  margin: 0;
+}
+.live-room .member-list li {
+  border-color: #e2e8f0;
+  padding: 12px 0;
+  gap: 6px;
+}
+.live-room .member-list span,
+.live-room .member-list small {
+  color: #64748b;
+}
+.live-room .member-list small:last-of-type {
+  width: 100%;
+}
+.live-room .member-list button {
+  font-size: 12px;
+}
+.live-room .chat-log {
+  min-height: 0;
+  max-height: none;
+  padding: 10px 0;
+  flex: 1;
+}
+.live-room .chat-message,
+.live-room .chat-message.mine {
+  border: 0;
+  background: #f5f7fb;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+.live-room .chat-message.mine {
+  background: #eef2ff;
+}
+.live-room .chat-message header,
+.live-room .chat-message small {
+  color: #64748b;
+}
+.live-room .chat-message p {
+  color: #1f2937;
+  margin: 4px 0;
+  line-height: 1.5;
+}
+.live-room .chat-message small button {
+  color: #3544bc;
+}
+.live-room .chat-composer {
+  flex-shrink: 0;
+  border-color: #e2e8f0;
+  padding-top: 8px;
+}
+.live-room .chat-composer textarea {
+  background: white;
+  border-color: #cbd5e1;
+  color: #1f2937;
+  min-height: 64px;
+  max-height: 120px;
+  padding: 8px;
+}
+.live-room .chat-composer .button:not(:disabled) {
+  background: #4f5fe8;
+  color: white;
+}
+.live-room .chat-empty {
+  color: #64748b;
+}
+.live-room .toolbar {
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  min-height: 68px;
+  padding: 10px 12px;
+  gap: 8px;
+  align-items: center;
+}
+.live-room .toolbar button {
+  min-height: 40px;
+  font-size: 12px;
+}
+.live-room .toolbar .leave-button {
+  width: auto;
+}
+.live-room .leave-button:not(:disabled) {
+  color: #a8323d;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+.live-room .drawer-backdrop {
+  display: none;
+}
+.room-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: 85dvh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+  color: #1f2937;
+}
+.room-dialog::backdrop {
+  background: #1e293b66;
+}
+.room-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.room-dialog h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.room-dialog p {
+  font-size: 13px;
+  color: #475569;
+}
+.room-dialog .media-controls {
+  color: #334155;
+  background: white;
+}
+.room-dialog select {
+  color: #1f2937;
+  background: white;
+  border: 1px solid #cbd5e1;
+}
+.room-dialog .error {
+  color: #b42332;
+}
+@media (max-width: 1000px) {
+  .room-heading {
+    display: block;
+  }
+  .room-actions button span {
+    font-size: 11px;
+  }
+  .live-room .member-grid[data-count="5"],
+  .live-room .member-grid[data-count="6"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .live-room .room-header {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  .live-room .room-header h1 {
+    font-size: 14px;
+  }
+  .live-room .meeting-number {
+    font-size: 10px;
+  }
+  .room-actions {
+    gap: 3px;
+  }
+  .room-actions button {
+    padding: 6px;
+  }
+  .room-actions button span {
+    display: none;
+  }
+  .room-actions button[title="退出专注"] span {
+    display: inline;
+  }
+  .live-room .room-body.has-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .live-room .room-stage {
+    padding: 8px;
+    gap: 8px;
+  }
+  .live-room .room-panel {
+    position: fixed;
+    z-index: 11;
+    right: 0;
+    top: 0;
+    width: min(340px, calc(100vw - 32px));
+    height: 100dvh;
+    box-shadow: -6px 0 24px #1f293722;
+  }
+  .live-room .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    border: 0;
+    border-radius: 0;
+    background: #1e293b66;
+  }
+  .live-room .toolbar {
+    gap: 5px;
+    padding: 6px;
+    min-height: 64px;
+  }
+  .live-room .toolbar button {
+    flex: 1 0 28%;
+    padding: 6px 4px;
+    min-height: 34px;
+  }
+  .thumbnail-strip {
+    flex-basis: 96px;
+  }
+  .live-room .thumbnail {
+    flex-basis: 150px;
+  }
+}
+@media (max-height: 500px) {
+  .live-room {
+    min-height: 420px;
+    overflow: auto;
+  }
+  .thumbnail-strip {
+    flex-basis: 80px;
+  }
+}
