@@ -120,3 +120,34 @@ func TestSchedulerSecondOverridesAndLimits(t *testing.T) {
 		t.Fatal("negative timeout accepted")
 	}
 }
+
+func TestDeepSeekConfigurationSafetyAndBudgets(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test-only-32-byte-secret-000000000000")
+	t.Setenv("DEEPSEEK_ENABLED", "true")
+	t.Setenv("DEEPSEEK_API_KEY", "")
+	t.Setenv("DEEPSEEK_MODEL", "account-selected-model")
+	t.Setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+	c, e := Load("")
+	if e != nil || c.AIConfigured() {
+		t.Fatal("missing key must not crash or be configured", e)
+	}
+	t.Setenv("DEEPSEEK_API_KEY", "local-test-key")
+	c, e = Load("")
+	if e != nil || !c.AIConfigured() || c.AIMaxSourceChars != 20000 || c.AIMaxSourceBytes != 80000 {
+		t.Fatal(c.AIConfigured(), e)
+	}
+	for _, u := range []string{"https://user:secret@api.deepseek.com", "https://api.deepseek.com?key=x", "http://public.example", "https://api.deepseek.com#bad"} {
+		t.Setenv("DEEPSEEK_BASE_URL", u)
+		if _, e = Load(""); e == nil {
+			t.Fatal("unsafe upstream allowed", u)
+		}
+	}
+	t.Setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+	for _, k := range []string{"DEEPSEEK_TIMEOUT_SECONDS", "DEEPSEEK_MAX_OUTPUT_TOKENS", "DEEPSEEK_MAX_SOURCE_CHARS", "DEEPSEEK_MAX_SOURCE_BYTES"} {
+		t.Setenv(k, "999999999")
+		if _, e = Load(""); e == nil {
+			t.Fatal("unbounded config", k)
+		}
+		t.Setenv(k, "")
+	}
+}

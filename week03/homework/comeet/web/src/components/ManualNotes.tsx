@@ -12,9 +12,11 @@ export interface Note {
 export function ManualNotes({
   meetingId,
   compact = false,
+  onSaved,
 }: {
   meetingId: string;
   compact?: boolean;
+  onSaved?: () => void;
 }) {
   const user = useAuth((s) => s.session?.user.id);
   const [notes, setNotes] = useState<Note[]>([]),
@@ -76,6 +78,7 @@ export function ManualNotes({
       setConflict(null);
       dirty.current = false;
       setNotice(`已保存 · 版本 ${saved.version}`);
+      onSaved?.();
     } catch (e) {
       setError((e as Error).message);
       if (e instanceof ApiError && e.code === "NOTE_VERSION_CONFLICT") {

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"comeet/server/internal/config"
 	"comeet/server/internal/realtime"
+	"comeet/server/internal/summary"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -43,6 +44,9 @@ func Router(db *sql.DB, c config.Config, realtimeServices ...*realtime.Service) 
 	if len(realtimeServices) > 0 {
 		hub = realtimeServices[0]
 	}
+	return RouterWithSummary(db, c, hub, summary.New(db, c))
+}
+func RouterWithSummary(db *sql.DB, c config.Config, hub *realtime.Service, ai *summary.Service) http.Handler {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,9 +81,9 @@ func Router(db *sql.DB, c config.Config, realtimeServices ...*realtime.Service) 
 			send(w, r, 503, "DATABASE_UNAVAILABLE", "数据库暂不可用", nil)
 			return
 		}
-		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 6})
+		send(w, r, 200, "OK", "success", Health{"ready", version, c.MediaConfigured(), c.AIConfigured(), 7})
 	})
-	business(r, db, c, hub)
+	business(r, db, c, hub, ai)
 	r.Get("/ws", hub.WS)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		send(w, r, 404, "NOT_FOUND", "接口不存在或尚未开发", nil)

@@ -6,6 +6,7 @@ import (
 	"comeet/server/internal/config"
 	"comeet/server/internal/meeting"
 	"comeet/server/internal/realtime"
+	"comeet/server/internal/summary"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -89,7 +90,7 @@ func authLimit() func(http.Handler) http.Handler {
 		})
 	}
 }
-func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) {
+func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service, ai *summary.Service) {
 	a := &auth.Service{DB: db, Config: c}
 	m := &meeting.Service{DB: db, Config: c}
 	r.Group(func(public chi.Router) {
@@ -201,6 +202,53 @@ func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) 
 				return
 			}
 			send(w, r, 200, "OK", "success", v)
+		})
+
+		private.Get("/api/v1/meetings/{id}/summaries", func(w http.ResponseWriter, r *http.Request) {
+			v, e := ai.View(r.Context(), identity(r), chi.URLParam(r, "id"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Post("/api/v1/meetings/{id}/summaries", func(w http.ResponseWriter, r *http.Request) {
+			var in summary.GenerateInput
+			if !decode(w, r, &in) {
+				return
+			}
+			v, e := ai.Generate(r.Context(), identity(r), chi.URLParam(r, "id"), in, w.Header().Get("X-Request-ID"))
+			if e != nil {
+				var ae *apperr.Error
+				if errors.As(e, &ae) && ae.Status == 429 {
+					w.Header().Set("Retry-After", "60")
+				}
+				fail(w, r, e)
+				return
+			}
+			status := 200
+			if v.Status == "running" {
+				status = 202
+			}
+			send(w, r, status, "OK", "success", v)
+		})
+		private.Get("/api/v1/meetings/{id}/summaries/export", func(w http.ResponseWriter, r *http.Request) {
+			for k := range r.URL.Query() {
+				if k != "jobId" {
+					fail(w, r, apperr.Invalid("导出参数不支持"))
+					return
+				}
+			}
+			v, e := ai.Export(r.Context(), identity(r), chi.URLParam(r, "id"), r.URL.Query().Get("jobId"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			name := "meeting-record.md"
+			if r.URL.Query().Get("jobId") != "" {
+				name = "meeting-summary.md"
+			}
+			send(w, r, 200, "OK", "success", map[string]string{"filename": name, "markdown": v})
 		})
 		private.Get("/api/v1/meetings/{id}/record", func(w http.ResponseWriter, r *http.Request) {
 			v, e := m.Record(r.Context(), identity(r), chi.URLParam(r, "id"))

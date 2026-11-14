@@ -86,16 +86,16 @@ function LiveHealthPanel() {
                   媒体配置
                   <strong>
                     {health.mediaConfigured
-                      ? "已填写 · 待第 4 阶段联调"
-                      : "未配置 · 第 4 阶段接入"}
+                      ? "已填写 · 实际媒体连接后验证"
+                      : "未配置 · 文字会议可用"}
                   </strong>
                 </p>
                 <p>
                   AI 配置
                   <strong>
                     {health.aiConfigured
-                      ? "已填写 · 待第 7 阶段联调"
-                      : "未配置 · 第 7 阶段接入"}
+                      ? "已填写 · 实际生成后验证"
+                      : "未配置 · 无法生成纪要"}
                   </strong>
                 </p>
               </div>

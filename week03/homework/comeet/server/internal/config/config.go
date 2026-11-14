@@ -20,6 +20,7 @@ type Config struct {
 	LivekitAPI, LivekitWS, LivekitKey, LivekitSecret                        string
 	AIEnabled                                                               bool
 	AIBase, AIModel, AIKey                                                  string
+	AIMaxSourceChars, AIMaxSourceBytes                                      int
 	AITimeout, AIMaxTokens                                                  int
 }
 
@@ -53,7 +54,7 @@ func Load(envFile string) (Config, error) {
 		fallback int
 		target   *int
 	}{
-		{"JWT_TTL_HOURS", 8, &c.JWTHours}, {"MAX_PARTICIPANTS", 6, &c.MaxParticipants}, {"MEETING_EMPTY_TIMEOUT_MINUTES", 10, &c.EmptyMinutes}, {"MEETING_MAX_DURATION_MINUTES", 240, &c.MaxMinutes}, {"DEEPSEEK_TIMEOUT_SECONDS", 90, &c.AITimeout}, {"DEEPSEEK_MAX_OUTPUT_TOKENS", 2048, &c.AIMaxTokens},
+		{"JWT_TTL_HOURS", 8, &c.JWTHours}, {"MAX_PARTICIPANTS", 6, &c.MaxParticipants}, {"MEETING_EMPTY_TIMEOUT_MINUTES", 10, &c.EmptyMinutes}, {"MEETING_MAX_DURATION_MINUTES", 240, &c.MaxMinutes}, {"DEEPSEEK_TIMEOUT_SECONDS", 90, &c.AITimeout}, {"DEEPSEEK_MAX_OUTPUT_TOKENS", 2048, &c.AIMaxTokens}, {"DEEPSEEK_MAX_SOURCE_CHARS", 20000, &c.AIMaxSourceChars}, {"DEEPSEEK_MAX_SOURCE_BYTES", 80000, &c.AIMaxSourceBytes},
 	} {
 		n, e := strconv.Atoi(value(item.k, strconv.Itoa(item.fallback)))
 		if e != nil || n < 1 {
@@ -89,6 +90,19 @@ func Load(envFile string) (Config, error) {
 	if err != nil {
 		return c, fmt.Errorf("DEEPSEEK_ENABLED must be boolean")
 	}
+	if c.AITimeout > 300 || c.AIMaxTokens > 32768 || c.AIMaxSourceChars > 200000 || c.AIMaxSourceBytes > 1000000 {
+		return c, fmt.Errorf("DeepSeek budgets exceed safe limits")
+	}
+	if c.AIEnabled {
+		u, e := url.Parse(c.AIBase)
+		local := u != nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")
+		if e != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && !(c.Env == "development" && local && u.Scheme == "http")) {
+			return c, fmt.Errorf("DEEPSEEK_BASE_URL must be HTTPS without credentials/query; local HTTP is development only")
+		}
+		if len(c.AIModel) > 100 || strings.ContainsAny(c.AIModel, "\r\n") {
+			return c, fmt.Errorf("invalid DEEPSEEK_MODEL")
+		}
+	}
 	if len(c.JWTSecret) < 32 {
 		return c, fmt.Errorf("JWT_SECRET must contain at least 32 bytes; run with -env-file .env -init-env first")
 	}
@@ -116,4 +130,6 @@ func (c Config) MediaConfigured() bool {
 	local := func(h string) bool { return h == "localhost" || h == "127.0.0.1" || h == "::1" }
 	return c.Env == "development" && api.Scheme == "http" && ws.Scheme == "ws" && local(api.Hostname()) && local(ws.Hostname())
 }
-func (c Config) AIConfigured() bool { return c.AIEnabled && c.AIKey != "" && c.AIModel != "" }
+func (c Config) AIConfigured() bool {
+	return c.AIEnabled && strings.TrimSpace(c.AIKey) != "" && strings.TrimSpace(c.AIModel) != ""
+}

@@ -1,14 +1,14 @@
-# Comeet · 第六阶段
+# Comeet · 第七阶段
 
-第一至第五阶段已由用户明确人工验收通过。第六阶段新增真实历史、参会时长、个人笔记与冲突处理、设备和基础限流、空房/最长时长调度；等待用户验收。不接入DeepSeek，不进行公开部署。
+第一至第五阶段及第六阶段本次7项人工检查已由用户确认通过。第六阶段剩余自动/进程检查已核对；本次仅新增DeepSeek纪要、任务/重试、保存查看与Markdown导出，等待第七阶段人工验收。不进入第八阶段、不公开部署。
 
-**运行要求保持：Go >=1.26.8，Node.js 24。完整 Windows 更新命令、双账号检查与媒体边界见 [第六阶段运行与验收](docs/第六阶段运行与验收.md)。保留原 server/.env 和 server/data。**
+**运行要求保持：Go >=1.26.8，Node.js 24。完整 Windows 更新命令、双账号检查与媒体边界见 [第七阶段运行与验收](docs/第七阶段运行与验收.md)。保留原 server/.env 和 server/data。**
 
-源码分支 stage6-room-fixes（基于 stage6-review），项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
+源码分支 stage7-review（基于 stage6-room-fixes），项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
 
 ## Windows 更新源码
 
-先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage6-room-fixes.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有001–004迁移保留；本阶段启动自动追加005和006迁移，无需清库或手工运行SQL。
+先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage7-review.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有001–004迁移保留；本阶段启动自动追加尚未执行的005、006及007迁移，无需清库或手工运行SQL。
 
 以下命令按用户现有目录 `D:\comeet-stage1-review\week03\homework\comeet` 编写；文件夹名带 stage1 不影响代码版本。若换了解压位置，替换命令路径即可。Pages 独立源码 ZIP 只含 comeet 文件夹。
 
@@ -110,7 +110,10 @@ test:e2e覆盖前三阶段与设备错误分支，媒体token缺配置的测试�
 - 新源码未生效：确认覆盖src及package-lock.json，停止前端，npm.cmd ci后重启，浏览器Ctrl+F5。
 - Pages https://kxsvtrdestiny.github.io/comeet/#/ 只作静态界面预览，不运行Go、SQLite、业务WS或LiveKit，必须本机验收。
 
-当前具体双账号清单见 docs/第六阶段运行与验收.md，历史清单见 docs/手工测试.md。**第六阶段完成后停止，等待用户验收，不接入DeepSeek或公开部署。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。
+当前具体双账号清单见 docs/第七阶段运行与验收.md，历史清单见 docs/手工测试.md。**第七阶段完成后停止，等待真实DeepSeek人工验收，不进入第八阶段或公开部署。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。
 
 
-第六阶段本次界面及结束会议修复、诊断步骤、三尺寸与双账号验收清单见 [会议室修复说明](docs/第六阶段会议室修复.md)。第六阶段仍待人工验收；未进入DeepSeek阶段。
+第六阶段本次界面及结束会议修复、诊断步骤、三尺寸与双账号验收清单见 [会议室修复说明](docs/第六阶段会议室修复.md)。第六阶段本次7项已由用户确认通过；当前第七阶段仍待真实DeepSeek人工验收。
+
+
+DeepSeek Key仅填写server/.env。未配置时不调用模型、不展示假纪要，仍可导出原始记录；任何纪要页面与导出均注明“不含语音转写”。具体私有配置、账户模型查询、输入预算、失败分类和真实验收步骤见[第七阶段运行与验收](docs/第七阶段运行与验收.md)。

@@ -8,6 +8,7 @@ import {
   type Meeting,
   type MeetingList,
 } from "../services/types";
+import { AISummaries } from "../components/AISummaries";
 import { ManualNotes } from "../components/ManualNotes";
 import type { Message } from "../services/room";
 export default function HistoryPage({ detail = false }: { detail?: boolean }) {
@@ -167,6 +168,7 @@ interface RecordData {
   }[];
 }
 function HistoryDetail() {
+  const [notesRevision,setNotesRevision] = useState(0);
   const { id = "" } = useParams();
   const { data, loading, error, retry } = useRemote<RecordData>(
     `/meetings/${encodeURIComponent(id)}/record`,
@@ -233,8 +235,9 @@ function HistoryDetail() {
               <HistoryChat meetingId={id} />
             </section>
             <section className="card">
-              <ManualNotes meetingId={id} />
+              <ManualNotes meetingId={id} onSaved={() => setNotesRevision(v => v + 1)} />
             </section>
+            <AISummaries key={id} meetingId={id} revision={notesRevision} />
           </>
         )
       )}

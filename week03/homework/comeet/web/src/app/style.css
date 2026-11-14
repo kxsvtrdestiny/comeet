@@ -1072,3 +1072,13 @@ main {
 .manual-notes textarea { display:block; width:100%; min-height:120px; max-height:45vh; resize:vertical; font:inherit; color:#1f2937; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px; }
 .manual-notes button { margin:8px 8px 0 0; }
 .note-conflict { padding:12px; background:#fff7e8; border:1px solid #e5c58a; border-radius:8px; }
+.ai-summaries { margin-top:24px; overflow-wrap:anywhere; }
+.ai-disclaimer { padding:10px; border-left:3px solid #4f5fe8; background:#f4f6ff; }
+.summary-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.summary-actions button { max-width:100%; }
+.ai-summaries select { width:100%; max-width:620px; }
+.summary-result { margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px; }
+.summary-result li { margin:8px 0; white-space:pre-wrap; }
+.summary-result li small { display:block; color:#64748b; }
+.summary-result > p { white-space:pre-wrap; }
+.summary-stale { padding:10px; background:#fff7e8; color:#785225; }

@@ -1,11 +1,11 @@
-# 当前已实现 API · 第四阶段
+# 当前已实现 API · 第七阶段
 
 统一前缀 /api/v1；响应 `{code,message,data,requestId}`，错误 data=null。鉴权用 `Authorization: Bearer <JWT>`，不把长期 JWT 放 URL。请求体最大 1MiB，未知 JSON 字段和多个对象被拒绝。时间为 UTC Unix 毫秒，JWT 标准时间字段按协议为秒。
 
 | 方法 / 路径 | 权限与实际行为 |
 |---|---|
 | GET /health/live | 公开；进程存活 |
-| GET /health/ready | 公开；实际查询迁移，stage=4、schemaVersion=003_realtime_chat.sql；DB 故障 503，可选媒体/AI 未配置不影响 200 |
+| GET /health/ready | 公开；实际查询迁移，stage=7、schemaVersion=007_deepseek_summaries.sql；DB 故障 503，可选媒体/AI 未配置不影响 200 |
 | POST /auth/register | 公开；username/displayName/password；201 返回 user，不自动登录 |
 | POST /auth/login | 公开；username/password；200 返回 token/expiresAt/user |
 | POST /auth/logout | 当前身份；撤销当前 sid，释放预留并关闭其在线业务连接；200 data=null |
@@ -102,3 +102,18 @@ JWT HS256，iss=LiveKit API Key，sub=参会sessionId，name/metadata取服务�
 - GET `/api/v1/meetings/:id/messages`：原受权分页不变，历史页复用beforeId补读，不另造聊天副本。
 
 私有API按登录SID分读/写/创建计数，429含Retry-After；退出登录豁免私有写桶，认证/IP及WS聊天限流继续保留。计数有界、进程内、重启重置。新秒级配置/分钟兼容、调度和005迁移见第六阶段运行与验收.md。自动结束复用持久ending/媒体清理；媒体失败不虚报ended。
+
+
+## 第七阶段 DeepSeek（当前）
+
+| 方法/路径 | 权限与行为 |
+|---|---|
+| GET /meetings/{id}/summaries | 主持人/实际参会者；配置布尔、模型、来源hash/预算、生成资格/原因、最近10次及最近成功任务。无Key/URL泄露 |
+| POST /meetings/{id}/summaries | 仅ended会议主持人；`{requestId:UUID,consent:true,regenerate?:boolean}`。新/合并运行任务202，已终结或复用成功200；其他未知字段拒绝。冻结当前有效来源并后台调用 |
+| GET /meetings/{id}/summaries/export?jobId=UUID | 主持人/实际参会者；带jobId导出本场成功任务冻结纪要，省略则导出当前原始会议记录。统一JSON data含filename/markdown，浏览器生成本地下载；跨场任务404 |
+
+任务status为running/succeeded/failed，包含id/sourceHash/model/createdAt/finishedAt/messageCount/noteCount；成功有结构化result，失败有安全errorCode/errorMessage/diagnosticId。页面固定“不含语音转写”。具体输出结构见开发规格11.3。source_snapshot不通过任务接口直接返回，导出权限同真实记录。
+
+同场单运行任务、全局2槽、每场3个新任务/分钟（持久计数），429含Retry-After:60；任务查询沿用已有私有读桶。所有请求编号含合并编号都持久映射到实际任务；相同sourceHash成功可复用，明确regenerate才再次调用。没有自动无限重试；服务重启或保存未确认任务标failed，人工重试可能再次收费。生成输入超限413 SOURCE_TOO_LARGE，无有效记录422 SOURCE_EMPTY，未结束409 MEETING_NOT_ENDED，缺配置503 AI_NOT_CONFIGURED，非主持人403 HOST_REQUIRED。
+
+上游失败异步落库，轮询接口本身仍200；分类AI_AUTH/AI_QUOTA/AI_UPSTREAM_RATE_LIMITED/AI_TIMEOUT/AI_NETWORK/AI_UNAVAILABLE/AI_REQUEST_REJECTED/AI_EMPTY_RESPONSE/AI_INVALID_RESPONSE/AI_INVALID_RESULT/AI_TRUNCATED；重启SERVER_RESTART，超时后保存未确认AI_RESULT_UNCONFIRMED。客户端不因AI_AUTH退出Comeet登录。日志不记录原始上游响应、Key、来源或聊天正文。

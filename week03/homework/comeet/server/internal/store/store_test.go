@@ -15,7 +15,7 @@ func TestMigrationPersistence(t *testing.T) {
 			t.Fatal(e)
 		}
 		var count int
-		if e = db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); e != nil || count != 6 {
+		if e = db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); e != nil || count != 7 {
 			t.Fatalf("migration count=%d error=%v", count, e)
 		}
 		var foreignKeys, timeout int
@@ -80,8 +80,45 @@ func TestUpgradeStage5DatabasePreservesExistingRows(t *testing.T) {
 		}
 		var n int
 		db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&n)
-		if n != 6 {
+		if n != 7 {
 			t.Fatal(n)
+		}
+		db.Close()
+	}
+}
+
+func TestStage6UpgradeKeepsNotesAndModerationCheckpoints(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stage6.db")
+	db, e := Open(path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, q := range []string{
+		"DROP TABLE summary_requests", "DROP TABLE summary_jobs", "DELETE FROM schema_migrations WHERE version='007_deepseek_summaries.sql'",
+		"INSERT INTO users VALUES ('legacy','legacy','legacy','旧账号','retained',1)",
+		"INSERT INTO meetings(id,meeting_no,title,host_user_id,livekit_room_name,status,started_at,client_request_id) VALUES ('legacy-meeting','123456789','旧会议','legacy','legacy-room','ending',1,'legacy-request')",
+		"INSERT INTO meeting_notes VALUES ('legacy-note','legacy-meeting','legacy','第六阶段笔记',3,1)",
+		"INSERT INTO moderation_operations(id,meeting_id,actor_id,action,target_user_id,state,created_at) VALUES ('legacy-op','legacy-meeting','legacy','end','','pending',1)",
+		"INSERT INTO moderation_cleanup_steps VALUES ('legacy-op','remove','old-session',1)",
+	} {
+		if _, e = db.Exec(q); e != nil {
+			t.Fatal(e)
+		}
+	}
+	db.Close()
+	for i := 0; i < 2; i++ {
+		db, e = Open(path)
+		if e != nil {
+			t.Fatal(e)
+		}
+		var content, status string
+		var version, done, count int
+		db.QueryRow("SELECT content,version FROM meeting_notes WHERE id='legacy-note'").Scan(&content, &version)
+		db.QueryRow("SELECT status FROM meetings WHERE id='legacy-meeting'").Scan(&status)
+		db.QueryRow("SELECT completed_at FROM moderation_cleanup_steps WHERE operation_id='legacy-op'").Scan(&done)
+		db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+		if content != "第六阶段笔记" || version != 3 || status != "ending" || done != 1 || count != 7 {
+			t.Fatal("migration lost stage6 state", content, version, status, done, count)
 		}
 		db.Close()
 	}
