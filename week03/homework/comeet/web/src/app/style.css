@@ -1059,3 +1059,16 @@ main {
     margin: 0 18px 10px;
   }
 }
+
+/* Private meeting records share the existing light workspace. */
+.history-filters, .history-filters form { display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
+.history-list { list-style:none; padding:0; }
+.history-list li, .attendance-row, .record-note { padding:12px 0; border-bottom:1px solid #e2e8f0; }
+.history-list h2 { font-size:18px; margin:8px 0; }
+.history-chat { max-height:480px; overflow:auto; }
+.history-chat article { border-bottom:1px solid #e2e8f0; padding:10px 0; }
+.history-chat time { display:block; color:#64748b; font-size:12px; }
+.history-chat p, .record-note pre, .note-conflict pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+.manual-notes textarea { display:block; width:100%; min-height:120px; max-height:45vh; resize:vertical; font:inherit; color:#1f2937; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px; }
+.manual-notes button { margin:8px 8px 0 0; }
+.note-conflict { padding:12px; background:#fff7e8; border:1px solid #e5c58a; border-radius:8px; }

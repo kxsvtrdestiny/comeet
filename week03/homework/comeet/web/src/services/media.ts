@@ -62,6 +62,7 @@ export class MediaClient {
   private state = { ...initialMedia };
   private busy = false;
   private shareEpoch = 0;
+  private pendingInput = new Map<"microphone" | "camera", string>();
   private screenTrack: LocalVideoTrack | null = null;
   constructor(
     private meetingId: string,
@@ -259,9 +260,18 @@ export class MediaClient {
         }
       } else if (existing) {
         // A host mute is a one-shot mute, never a publish-permission lock.
+        if (this.pendingInput.has(kind)) {
+          const ok = await room.switchActiveDevice(
+            kind === "microphone" ? "audioinput" : "videoinput",
+            this.pendingInput.get(kind) || "default",
+          );
+          if (!ok) throw Error("device switch failed");
+          this.pendingInput.delete(kind);
+        }
         await existing.unmute();
       } else {
         const prefs = preferences();
+        this.pendingInput.delete(kind);
         const deviceId =
           kind === "microphone" ? prefs.audioInput : prefs.videoInput;
         const constraints: MediaTrackConstraints =
@@ -444,6 +454,22 @@ export class MediaClient {
     this.busy = true;
     this.update({ busy: true, error: "" });
     try {
+      if (kind !== "audiooutput") {
+        const captureKind = kind === "audioinput" ? "microphone" : "camera";
+        const enabled =
+          captureKind === "microphone"
+            ? room.localParticipant.isMicrophoneEnabled
+            : room.localParticipant.isCameraEnabled;
+        if (!enabled) {
+          this.pendingInput.set(captureKind, id);
+          savePreferences({
+            ...preferences(),
+            [kind === "audioinput" ? "audioInput" : "videoInput"]: id,
+          });
+          this.update();
+          return;
+        }
+      }
       const ok = await room.switchActiveDevice(kind, id || "default");
       if (!ok) throw Error("switch");
       if (this.disposed) {

@@ -1,14 +1,14 @@
-# Comeet · 第五阶段
+# Comeet · 第六阶段
 
-第一至第四阶段已由用户明确人工验收通过。当前第五阶段实现真实屏幕共享、多来源主画面及主持人一次静音/移出/结束，等待本阶段用户验收。未开发第六阶段或 DeepSeek。
+第一至第五阶段已由用户明确人工验收通过。第六阶段新增真实历史、参会时长、个人笔记与冲突处理、设备和基础限流、空房/最长时长调度；等待用户验收。不接入DeepSeek，不进行公开部署。
 
-**本阶段新增运行要求：Go >=1.26.8，Node.js 24。完整 Windows 更新命令、双账号检查与媒体边界见 [第五阶段运行与验收](docs/第五阶段运行与验收.md)。保留原 server/.env 和 server/data。**
+**运行要求保持：Go >=1.26.8，Node.js 24。完整 Windows 更新命令、双账号检查与媒体边界见 [第六阶段运行与验收](docs/第六阶段运行与验收.md)。保留原 server/.env 和 server/data。**
 
-源码分支 stage5-review，项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
+源码分支 stage6-review，项目在 week03/homework/comeet。更新或最终提交学校仓库时只取 **comeet 文件夹**，不改其他作业。第一至第三阶段分支保留。
 
 ## Windows 更新源码
 
-先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage5-review.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有001–003迁移保留；本阶段启动自动追加004迁移，无需清库或手工运行SQL。
+先在原前端、后端终端分别 Ctrl+C。下载 https://github.com/kxsvtrdestiny/comeet/archive/refs/heads/stage6-review.zip ，解压后把新版 week03/homework/comeet 内部文件覆盖到旧 comeet 目录，**保留 server/.env 和 server/data，不清空旧目录**。重新安装依赖，不沿用旧 node_modules/dist。已有001–004迁移保留；本阶段启动自动追加005迁移，无需清库或手工运行SQL。
 
 以下命令按用户现有目录 `D:\comeet-stage1-review\week03\homework\comeet` 编写；文件夹名带 stage1 不影响代码版本。若换了解压位置，替换命令路径即可。Pages 独立源码 ZIP 只含 comeet 文件夹。
 
@@ -48,7 +48,7 @@ go run ./cmd/server -env-file .env -init-env
 go run ./cmd/server -env-file .env
 ```
 
-`-init-env`仅创建缺失文件/空JWT密钥，保留已有合格密钥及其他配置，不会打印秘密。看到server_start、stage=5后保持终端运行。后续启动通常只执行最后一行。显式-env-file才读文件，系统环境优先；不要旋转JWT_SECRET或删除data。
+`-init-env`仅创建缺失文件/空JWT密钥，保留已有合格密钥及其他配置，不会打印秘密。看到server_start、stage=6后保持终端运行。后续启动通常只执行最后一行。显式-env-file才读文件，系统环境优先；不要旋转JWT_SECRET或删除data。
 
 ## 终端 B：前端 PowerShell（另开，保持开启）
 
@@ -110,4 +110,4 @@ test:e2e覆盖前三阶段与设备错误分支，媒体token缺配置的测试�
 - 新源码未生效：确认覆盖src及package-lock.json，停止前端，npm.cmd ci后重启，浏览器Ctrl+F5。
 - Pages https://kxsvtrdestiny.github.io/comeet/#/ 只作静态界面预览，不运行Go、SQLite、业务WS或LiveKit，必须本机验收。
 
-当前具体双账号清单见 docs/第五阶段运行与验收.md，历史清单见 docs/手工测试.md。**第五阶段完成后停止，等待用户人工验收，不进入第六阶段或 DeepSeek。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。
+当前具体双账号清单见 docs/第六阶段运行与验收.md，历史清单见 docs/手工测试.md。**第六阶段完成后停止，等待用户验收，不接入DeepSeek或公开部署。** 最终全部阶段结束后清理阶段提示，只交comeet文件夹。

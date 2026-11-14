@@ -129,7 +129,8 @@ export function MediaControls({
 }) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]),
     [prefs, setPrefs] = useState(preferences),
-    [listError, setListError] = useState("");
+    [listError, setListError] = useState(""),
+    [deviceAttempt, setDeviceAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
     const refresh = () => {
@@ -151,7 +152,7 @@ export function MediaControls({
       alive = false;
       navigator.mediaDevices?.removeEventListener("devicechange", refresh);
     };
-  }, [state.microphone, state.camera]);
+  }, [state.microphone, state.camera, deviceAttempt]);
   const connected = state.status === "connected";
   const mic = state.room?.localParticipant.getTrackPublication(
     Track.Source.Microphone,
@@ -167,6 +168,9 @@ export function MediaControls({
       <MicrophoneLevel
         track={state.microphone ? mic?.mediaStreamTrack : undefined}
       />
+      <button onClick={() => setDeviceAttempt((n) => n + 1)}>
+        刷新会议设备列表
+      </button>
       <details>
         <summary>设备选择</summary>
         {(

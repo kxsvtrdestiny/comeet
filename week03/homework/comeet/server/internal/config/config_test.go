@@ -105,3 +105,18 @@ func TestMediaConfigurationValidation(t *testing.T) {
 		t.Fatal("partial config allowed")
 	}
 }
+
+func TestSchedulerSecondOverridesAndLimits(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test-only-32-byte-secret-000000000000")
+	t.Setenv("MEETING_EMPTY_TIMEOUT_SECONDS", "2")
+	t.Setenv("MEETING_MAX_DURATION_SECONDS", "8")
+	t.Setenv("MEETING_SWEEP_SECONDS", "1")
+	c, e := Load("")
+	if e != nil || c.EmptySeconds != 2 || c.MaxSeconds != 8 || c.SweepSeconds != 1 {
+		t.Fatal(c, e)
+	}
+	t.Setenv("MEETING_MAX_DURATION_SECONDS", "-1")
+	if _, e = Load(""); e == nil {
+		t.Fatal("negative timeout accepted")
+	}
+}

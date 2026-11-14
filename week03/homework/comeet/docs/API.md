@@ -91,3 +91,14 @@ JWT HS256，iss=LiveKit API Key，sub=参会sessionId，name/metadata取服务�
 成功 data 为 `{operationId,state:"completed"}`。普通成员 403 HOST_REQUIRED；媒体依赖失败 502 MEDIA_CONTROL_FAILED、缺配置 503 MEDIA_NOT_CONFIGURED；均不当作成功。移出后 join/resume/ws-ticket/media-token 拒绝；ending/ended 同样拒绝加入/恢复/授权。重复成功操作幂等，operationId 与其他参数冲突返回 409 REQUEST_CONFLICT。已提交业务状态不会因媒体失败回滚。
 
 目标成功静音收到 `member.muted`，payload `{message:"主持人已将你静音，你可以自行开麦"}`。移出收到 REMOVED_FROM_MEETING，结束中收到 MEETING_ENDING 并停止媒体；主持人保留结束重试入口，其他成员返回工作台。Go→LiveKit 使用有界超时和明确撤销截止时间，真实旧 token 撤销以所用 Cloud 服务验收为准。
+
+
+## 第六阶段记录、笔记与基础保护
+
+- GET `/api/v1/meetings?status=ended&keyword=...&cursor=...&limit=20`：复用原授权列表；支持状态/标题/原始或带分隔符会议号搜索。只有主持人和实际参加过的会议可见。
+- GET `/api/v1/meetings/:id/record`：`{meeting,durationMillis,attendees:[{userId,displayName,isHost,durationMillis,intervals:[{sessionId,joinedAt,leftAt,durationMillis}]}]}`；实际区间来源attendance_intervals，不把准备/预留当参会；开放区间以本次读取为截止。
+- GET `/api/v1/meetings/:id/notes`：授权成员读取本场全部笔记数组 `{id,authorId,authorName,content,version,updatedAt}`。
+- PUT `/api/v1/meetings/:id/notes/me`：`{content,version}`，作者来自JWT，不接受authorId；首次version=0，成功后版本递增。每场每人一份，最多10000字符/40000字节。版本不符返回409 NOTE_VERSION_CONFLICT（data为null），客户端再读取最新版本供比较，禁止静默覆盖。
+- GET `/api/v1/meetings/:id/messages`：原受权分页不变，历史页复用beforeId补读，不另造聊天副本。
+
+私有API按登录SID分读/写/创建计数，429含Retry-After；退出登录豁免私有写桶，认证/IP及WS聊天限流继续保留。计数有界、进程内、重启重置。新秒级配置/分钟兼容、调度和005迁移见第六阶段运行与验收.md。自动结束复用持久ending/媒体清理；媒体失败不虚报ended。

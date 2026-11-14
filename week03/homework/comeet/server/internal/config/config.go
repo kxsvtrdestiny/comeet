@@ -12,14 +12,15 @@ import (
 )
 
 type Config struct {
-	Env, Addr, Origin, DatabasePath                     string
-	AllowedOrigins                                      []string
-	JWTSecret, JWTIssuer, JWTAudience                   string
-	JWTHours, MaxParticipants, EmptyMinutes, MaxMinutes int
-	LivekitAPI, LivekitWS, LivekitKey, LivekitSecret    string
-	AIEnabled                                           bool
-	AIBase, AIModel, AIKey                              string
-	AITimeout, AIMaxTokens                              int
+	EmptySeconds, MaxSeconds, SweepSeconds, APIReads, APIWrites, APICreates int
+	Env, Addr, Origin, DatabasePath                                         string
+	AllowedOrigins                                                          []string
+	JWTSecret, JWTIssuer, JWTAudience                                       string
+	JWTHours, MaxParticipants, EmptyMinutes, MaxMinutes                     int
+	LivekitAPI, LivekitWS, LivekitKey, LivekitSecret                        string
+	AIEnabled                                                               bool
+	AIBase, AIModel, AIKey                                                  string
+	AITimeout, AIMaxTokens                                                  int
 }
 
 func value(k, fallback string) string {
@@ -60,6 +61,29 @@ func Load(envFile string) (Config, error) {
 		}
 		*item.target = n
 	}
+	for _, item := range []struct {
+		k        string
+		fallback int
+		target   *int
+	}{
+		{"MEETING_SWEEP_SECONDS", 5, &c.SweepSeconds}, {"API_READS_PER_MINUTE", 600, &c.APIReads}, {"API_WRITES_PER_MINUTE", 120, &c.APIWrites}, {"MEETING_CREATES_PER_MINUTE", 20, &c.APICreates},
+	} {
+		n, e := strconv.Atoi(value(item.k, strconv.Itoa(item.fallback)))
+		if e != nil || n < 1 || n > 100000 {
+			return c, fmt.Errorf("%s must be between 1 and 100000", item.k)
+		}
+		*item.target = n
+	}
+	for _, item := range []struct {
+		k      string
+		target *int
+	}{{"MEETING_EMPTY_TIMEOUT_SECONDS", &c.EmptySeconds}, {"MEETING_MAX_DURATION_SECONDS", &c.MaxSeconds}} {
+		n, e := strconv.Atoi(value(item.k, "0"))
+		if e != nil || n < 0 || n > 31536000 {
+			return c, fmt.Errorf("%s must be between 0 and 31536000", item.k)
+		}
+		*item.target = n
+	}
 	var err error
 	c.AIEnabled, err = strconv.ParseBool(value("DEEPSEEK_ENABLED", "false"))
 	if err != nil {
@@ -67,6 +91,9 @@ func Load(envFile string) (Config, error) {
 	}
 	if len(c.JWTSecret) < 32 {
 		return c, fmt.Errorf("JWT_SECRET must contain at least 32 bytes; run with -env-file .env -init-env first")
+	}
+	if c.EmptyMinutes > 525600 || c.MaxMinutes > 525600 {
+		return c, fmt.Errorf("meeting timeout minutes must not exceed 525600")
 	}
 	if c.MaxParticipants > 6 {
 		return c, fmt.Errorf("MAX_PARTICIPANTS must be between 1 and 6")

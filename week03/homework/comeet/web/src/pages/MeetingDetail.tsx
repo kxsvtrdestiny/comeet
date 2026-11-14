@@ -37,6 +37,7 @@ export default function MeetingDetail() {
             <h2>{data.title}</h2>
             <p>会议号：{formatMeetingNo(data.meetingNo)}</p>
             <p>主持人：{data.hostName}</p>
+            <Link to={`/history/${data.id}`}>查看参会记录、聊天与笔记</Link>
             <p>创建时间：{new Date(data.startedAt).toLocaleString("zh-CN")}</p>
             <p>
               状态：

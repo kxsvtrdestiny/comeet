@@ -103,6 +103,7 @@ export default function DevicePrepare({
       track.onended = () => {
         if (alive.current && generation.current[kind] === gen) {
           halt(kind);
+          setBusy((v) => ({ ...v, [kind]: false }));
           update({ [kind]: false });
           setErrors((v) => ({ ...v, [kind]: "设备已断开，请选择其他设备。" }));
         }

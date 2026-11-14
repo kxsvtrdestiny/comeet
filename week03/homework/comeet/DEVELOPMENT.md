@@ -1,6 +1,6 @@
-# 开发约定 · 第五阶段
+# 开发约定 · 第六阶段
 
-依据 docs/开发规格-v2.0.md。第一至第四阶段已由用户确认验收通过；当前仅授权第五阶段共享与会控，完成后停止等待验收，不开发第六阶段或 DeepSeek。截图、报错、继续修复不算下一阶段授权。
+依据 docs/开发规格-v2.0.md。第一至第五阶段已由用户确认人工验收通过（含第五阶段结束失败恢复）；当前仅授权第六阶段历史、笔记与稳定性，完成后停止，不接入DeepSeek或公开部署。截图、报错、继续修复不算下一阶段授权。
 
 所有项目文件在 week03/homework/comeet，未改其他作业。Web 使用 React 19.2.0、TypeScript 5.9.3、Vite 7.3.8、React Router 7.18.5、Zustand 5.0.8；Go 1.26.8、chi 5.2.3、jwt/v5 5.3.0、x/crypto 0.43.0、modernc SQLite 1.39.1。精确依赖以锁文件为准。
 
@@ -36,3 +36,12 @@ Go testing/httptest 使用临时真实 SQLite，覆盖认证/对象权限/竞争
 004 新迁移只加 media_grants 与 moderation_operations，保留已有数据。控制入口 REST 认证并核对 host_user_id，静音由服务端取 Microphone TrackSid；移出先ban/终止业务再媒体清理；结束 active→ending→媒体移出/删房→ended。失败返回非2xx、持久 pending，可从会控结果和会议详情重试；启动执行有界重试，不做第六阶段定时自动结束。网络等待不持 realtime mutex 或 SQLite 事务。一次静音按 UUID 去重，移出/结束按业务目标合并。
 
 分享生命周期测试明确模拟采集和发布传输，普通 E2E 使用真实 Go/SQLite/WS。真实第三方测试在 test:media，包括旧 token 直接重入验证；缺少服务配置时必须记待验证。第四阶段用户验收事实和本阶段云测试证据分别记录，不把前者扩大为本阶段真实 SFU 通过。不要自动进入下一阶段。
+
+
+## 第六阶段当前约定
+
+以本节和 docs/第六阶段运行与验收.md 为当前状态；前文未授权第六阶段是历史边界，已被用户本次明确授权覆盖。005只新增个人笔记和查询索引，不改旧迁移、不删data。历史复用meeting.Detail实际参会权限和messages分页；笔记JWT绑定本人，每场每人一份，version CAS，冲突不得覆盖本地。duration基于原attendance_intervals，重连不重开区间。
+
+空房/最长时长采用原ending持久化+媒体清理路径，保留45秒grace，last_empty_at跨重启保留；秒级配置只覆盖分钟默认，便于测试。私有API按SID读/写/创建有界计数，auth/IP与聊天120/min复用。设备关闭时切输入只更新偏好，主动开启才采集。聊天未读和原消息重试复用，不重写RoomClient。
+
+真实第三方测试仍在test:media，云端无Key时明确待验证。禁止接入DeepSeek、伪造纪要或公开部署。最终仅comeet文件夹交付，保留用户.env和data。

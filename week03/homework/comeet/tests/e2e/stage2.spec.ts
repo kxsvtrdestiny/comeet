@@ -248,8 +248,8 @@ test("real health after migration and retry", async ({ page, request }) => {
   await expect(page.getByText("● 数据库初始化正常")).toBeVisible();
   const r = await request.get("/api/v1/health/ready");
   const d = (await r.json()).data;
-  expect(d.schemaVersion).toBe("004_sharing_moderation.sql");
-  expect(d.stage).toBe(5);
+  expect(d.schemaVersion).toBe("005_history_notes.sql");
+  expect(d.stage).toBe(6);
   expect(typeof d.mediaConfigured).toBe("boolean");
   expect(d.aiConfigured).toBe(false);
 });

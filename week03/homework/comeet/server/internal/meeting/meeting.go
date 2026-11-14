@@ -114,7 +114,7 @@ func (s *Service) Create(ctx context.Context, user auth.Identity, in CreateInput
 			return Meeting{}, e
 		}
 		no = fmt.Sprintf("%09d", n.Int64())
-		_, e = tx.ExecContext(ctx, `INSERT INTO meetings(id,meeting_no,title,host_user_id,livekit_room_name,status,started_at,client_request_id) VALUES (?,?,?,?,?,'active',?,?)`, id, no, in.Title, user.User.ID, id, now, in.ClientRequestID)
+		_, e = tx.ExecContext(ctx, `INSERT INTO meetings(id,meeting_no,title,host_user_id,livekit_room_name,status,started_at,last_empty_at,client_request_id) VALUES (?,?,?,?,?,'active',?,?,?)`, id, no, in.Title, user.User.ID, id, now, now, in.ClientRequestID)
 		if e == nil {
 			if e = tx.Commit(); e != nil {
 				return Meeting{}, e
@@ -199,7 +199,13 @@ func (s *Service) List(ctx context.Context, user auth.Identity, status, keyword,
 	}
 	if keyword != "" {
 		q += " AND (instr(lower(m.title),lower(?))>0 OR instr(m.meeting_no,?)>0)"
-		args = append(args, keyword, keyword)
+		numberQuery := strings.Map(func(r rune) rune {
+			if unicode.IsSpace(r) || r == '-' {
+				return -1
+			}
+			return r
+		}, keyword)
+		args = append(args, keyword, numberQuery)
 	}
 	if cursor != "" {
 		decoded, e := base64.RawURLEncoding.DecodeString(cursor)
@@ -319,6 +325,9 @@ func (s *Service) Join(ctx context.Context, user auth.Identity, id string, in Jo
 	}
 	if count >= s.Config.MaxParticipants {
 		return Reservation{}, apperr.New(409, "MEETING_FULL", "会议人数已满，请稍后重试")
+	}
+	if _, e = tx.ExecContext(ctx, "UPDATE meetings SET last_empty_at=NULL WHERE id=?", id); e != nil {
+		return Reservation{}, e
 	}
 	sessionID = uuid.NewString()
 	expiry = now + 60_000

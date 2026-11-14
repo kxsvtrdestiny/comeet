@@ -137,6 +137,7 @@ func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) 
 				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, id)))
 			})
 		})
+		private.Use(apiLimit(c))
 		private.Get("/api/v1/me", func(w http.ResponseWriter, r *http.Request) { send(w, r, 200, "OK", "success", identity(r).User) })
 		private.Post("/api/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 			if e := a.Logout(r.Context(), identity(r)); e != nil {
@@ -195,6 +196,34 @@ func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) 
 		})
 		private.Get("/api/v1/meetings/{id}/prepare", func(w http.ResponseWriter, r *http.Request) {
 			v, e := m.Prepare(r.Context(), chi.URLParam(r, "id"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Get("/api/v1/meetings/{id}/record", func(w http.ResponseWriter, r *http.Request) {
+			v, e := m.Record(r.Context(), identity(r), chi.URLParam(r, "id"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Get("/api/v1/meetings/{id}/notes", func(w http.ResponseWriter, r *http.Request) {
+			v, e := m.Notes(r.Context(), identity(r), chi.URLParam(r, "id"))
+			if e != nil {
+				fail(w, r, e)
+				return
+			}
+			send(w, r, 200, "OK", "success", v)
+		})
+		private.Put("/api/v1/meetings/{id}/notes/me", func(w http.ResponseWriter, r *http.Request) {
+			var in meeting.NoteInput
+			if !decode(w, r, &in) {
+				return
+			}
+			v, e := m.SaveNote(r.Context(), identity(r), chi.URLParam(r, "id"), in)
 			if e != nil {
 				fail(w, r, e)
 				return

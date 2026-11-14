@@ -224,14 +224,8 @@ func (s *Service) Start() {
 	s.done = make(chan struct{})
 	done := s.done
 	s.controlDone = make(chan struct{})
-	controlDone := s.controlDone
 	s.mu.Unlock()
-	go func() {
-		defer close(controlDone)
-		retryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-		_ = s.RetryControls(retryCtx)
-	}()
+	go s.schedulingLoop(ctx)
 	go func() {
 		defer close(done)
 		ticker := time.NewTicker(time.Second)

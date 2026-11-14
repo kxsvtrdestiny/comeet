@@ -155,7 +155,7 @@ func (s *Service) closeControlSessions(ctx context.Context, op controlOp) error 
 	}
 	code, msg := "REMOVED_FROM_MEETING", "你已被主持人移出本场会议"
 	if op.Action == "end" {
-		code, msg = "MEETING_ENDING", "主持人正在结束会议"
+		code, msg = "MEETING_ENDING", "会议正在结束"
 	}
 	for _, id := range ids {
 		v, e := s.load(ctx, id)

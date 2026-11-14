@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useModeration } from "../services/moderation";
 import { ControlFeedback } from "../components/ControlFeedback";
+import { ManualNotes } from "../components/ManualNotes";
 import { RoomDialog } from "../components/RoomDialog";
 import {
   nextSelection,
@@ -81,7 +82,9 @@ function LiveRoom() {
     key: null,
   });
   const [focused, setFocused] = useState(false);
-  const [dialog, setDialog] = useState<"connection" | "devices" | null>(null);
+  const [dialog, setDialog] = useState<
+    "connection" | "devices" | "notes" | null
+  >(null);
   const [viewNotice, setViewNotice] = useState("");
   const [unread, setUnread] = useState(0);
   const lastMessage = useRef<number | null>(null);
@@ -208,10 +211,11 @@ function LiveRoom() {
     if (state.status === "connected")
       lastMessage.current = Math.max(lastMessage.current || 0, highest);
     if (panel === "chat") setUnread(0);
-    else if (fresh.length) setUnread((n) => n + fresh.length);
+    else if (state.status === "connected" && fresh.length)
+      setUnread((n) => n + fresh.length);
     if (panel === "chat" && log.current && stickToBottom.current)
       log.current.scrollTop = log.current.scrollHeight;
-  }, [state.messages, panel, session?.user.id]);
+  }, [state.messages, state.status, panel, session?.user.id]);
   // On small screens the shared panel is a modal drawer with trapped focus and Escape.
   useEffect(() => {
     if (!panel || !window.matchMedia("(max-width: 767px)").matches) return;
@@ -710,6 +714,7 @@ function LiveRoom() {
         </div>
       </div>
       <footer className="toolbar">
+        <button onClick={() => setDialog("notes")}>会议笔记</button>
         <button
           disabled={
             media.state.status !== "connected" || media.state.sharingBusy
@@ -783,10 +788,18 @@ function LiveRoom() {
       </footer>
       {dialog && (
         <RoomDialog
-          title={dialog === "connection" ? "连接详情" : "设备设置"}
+          title={
+            dialog === "connection"
+              ? "连接详情"
+              : dialog === "notes"
+                ? "会议笔记"
+                : "设备设置"
+          }
           close={() => setDialog(null)}
         >
-          {dialog === "connection" ? (
+          {dialog === "notes" ? (
+            <ManualNotes meetingId={id} />
+          ) : dialog === "connection" ? (
             <>
               <p>
                 聊天与成员连接：
