@@ -28,16 +28,7 @@ function StaticDashboard() {
           静态测试站未连接业务服务。注册、登录和会议操作请在 Windows
           本机运行前后端后验收。
         </p>
-        <a
-          className="text-button"
-          href={`${import.meta.env.BASE_URL}comeet-source.zip`}
-          download
-        >
-          下载第四阶段源码 ZIP
-        </a>
-        <Link className="text-button" to="/meetings/preview/room">
-          会议室界面预览
-        </Link>
+
       </section>
     </>
   );

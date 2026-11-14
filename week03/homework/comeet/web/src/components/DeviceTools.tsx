@@ -109,7 +109,9 @@ export function SpeakerTest({ deviceId }: { deviceId: string }) {
       audio.srcObject = null;
       try {
         osc.stop();
-      } catch {}
+      } catch {
+        // Oscillator may already be stopped; continue releasing the other resources.
+      }
       osc.disconnect();
       gain.disconnect();
       dest.stream.getTracks().forEach((t) => t.stop());

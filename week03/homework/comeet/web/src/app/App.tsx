@@ -80,9 +80,6 @@ export default function App() {
                 设置
               </NavLink>
             </nav>
-            <div className="sidebar-bottom">
-              <span className="tag">阶段 07 / 08</span>
-            </div>
           </aside>
           <div className="workspace">
             <header className="topbar">

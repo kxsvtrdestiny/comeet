@@ -203,6 +203,10 @@ test("UI fixture only: running, failure/manual retry, saved result, source updat
     );
   });
   const section = page.getByRole("region", { name: "DeepSeek会议纪要" });
+  await expect(section.locator(".ai-disclaimer")).toHaveText("由 DeepSeek 基于聊天与手动笔记生成，不含语音转写。");
+  await expect(section).not.toContainText("输入上限");
+  await expect(section).not.toContainText("fixture-model");
+
   page.once("dialog", (d) => d.accept());
   await section
     .getByRole("button", { name: "生成 AI 纪要", exact: true })
@@ -216,6 +220,8 @@ test("UI fixture only: running, failure/manual retry, saved result, source updat
   page.once("dialog", (d) => d.accept());
   await section.getByRole("button", { name: "重试生成纪要" }).click();
   await expect(section).toContainText("任务状态：已成功保存");
+  await expect(section).not.toContainText("fixture-model");
+  await expect(section).not.toContainText("输入上限");
   await expect(section).toContainText("负责人：未明确");
   await expect(section).toContainText("截止：未明确");
   await expect(section.locator("script")).toHaveCount(0);

@@ -40,7 +40,7 @@ type View = {
   jobs: Job[];
 };
 const disclaimer =
-  "由 DeepSeek 基于聊天与手动笔记生成，不含语音转写，请核对内容。";
+  "由 DeepSeek 基于聊天与手动笔记生成，不含语音转写。";
 export function AISummaries({
   meetingId,
   revision,
@@ -215,11 +215,7 @@ export function AISummaries({
               不放前端、不在聊天中发送。
             </p>
           )}
-          <small>
-            输入上限：{data.maxChars}字符 / {data.maxBytes}
-            字节（保守预算，非精确 token 计数）；不自动截断。模型：
-            {data.model || "未设置"}。
-          </small>
+
           {!data.jobs.length && (
             <p>尚无纪要任务；没有模型返回时不会展示示例纪要。</p>
           )}
@@ -247,8 +243,7 @@ export function AISummaries({
                 {job.status === "running" ? "，可离开页面，刷新后继续查看" : ""}
               </p>
               <p>
-                来源：{job.messageCount}条聊天、{job.noteCount}份笔记 · 模型：
-                {job.model}
+                来源：{job.messageCount}条聊天、{job.noteCount}份笔记
               </p>
               {changed && (
                 <p className="summary-stale" role="status">
