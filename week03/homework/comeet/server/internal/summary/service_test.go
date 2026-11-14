@@ -420,3 +420,34 @@ func TestDatabaseWriteFailureNeverReportsSuccess(t *testing.T) {
 		t.Fatal(v, e)
 	}
 }
+
+func TestValidationDiagnosticsExposeOnlyAllowlistedRulesAndPaths(t *testing.T) {
+	snap := Snapshot{Entries: []Entry{{ID: "message:1", Content: "甲在2026-12-01完成初稿。"}}}
+	cases := []struct{ raw, rule, path string }{
+		{"private malformed body", "INVALID_JSON", "result"},
+		{strings.Replace(valid, `"topics":["方案"]`, `"topics":null`, 1), "NULL_ARRAY", "topics"},
+		{strings.Replace(valid, `"summary":"方案A已确定",`, "", 1), "MISSING_FIELD", "summary"},
+		{strings.ReplaceAll(valid, "message:1", "message:PRIVATE-IDENTIFIER"), "SOURCE_REFERENCE", "decisions[0].sourceIds"},
+		{strings.Replace(valid, `"owner":"甲"`, `"owner":"PRIVATE-NAME"`, 1), "OWNER_NOT_IN_SOURCE", "actionItems[0].owner"},
+		{strings.Replace(valid, "2026-12-01", "2099-01-01", 1), "DATE_NOT_IN_SOURCE", "actionItems[0].dueDate"},
+		{strings.Replace(valid, "不含语音转写", "PRIVATE-DISCLAIMER", 1), "DISCLAIMER_MISSING", "limitations"},
+		{strings.Replace(valid, `"summary":`, `"PRIVATE-UNKNOWN-FIELD":0,"summary":`, 1), "UNKNOWN_FIELD", "result"},
+	}
+	for _, tc := range cases {
+		_, e := validateResult(tc.raw, snap)
+		var v *resultValidationError
+		if !errors.As(e, &v) || v.Rule != tc.rule || v.Path != tc.path {
+			t.Fatalf("want %s/%s got %v", tc.rule, tc.path, e)
+		}
+		if strings.Contains(v.Error()+v.Hint, "PRIVATE") || strings.Contains(v.Error()+v.Hint, "private malformed") {
+			t.Fatal("provider content leaked")
+		}
+	}
+	f := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		respond(w, strings.ReplaceAll(valid, "message:1", "message:PRIVATE-IDENTIFIER"), "stop")
+	})
+	job := wait(t, f, f.gen(t, input()).ID)
+	if job.ErrorCode != "AI_INVALID_RESULT" || !strings.Contains(job.ErrorMessage, "SOURCE_REFERENCE") || !strings.Contains(job.ErrorMessage, "decisions[0].sourceIds") || strings.Contains(job.ErrorMessage, "PRIVATE") || job.Result != nil {
+		t.Fatal("safe diagnostic not persisted", job)
+	}
+}

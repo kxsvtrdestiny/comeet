@@ -296,6 +296,7 @@ func (s *Service) run(j Job, snap Snapshot, raw string) {
 	}
 	ctx, cancel := context.WithTimeout(s.ctx, time.Duration(seconds)*time.Second)
 	defer cancel()
+	ctx = context.WithValue(ctx, validationTraceKey{}, validationTrace{j.ID, j.DiagnosticID})
 	result, e := s.complete(ctx, snap, raw)
 	status, code, message, resultJSON := "succeeded", "", "", ""
 	if e != nil {
