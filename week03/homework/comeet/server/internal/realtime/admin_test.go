@@ -87,3 +87,27 @@ func TestOfficialSDKRequestsMicOnlyAndExplicitRevocation(t *testing.T) {
 		t.Fatal("missing mute or revocation cutoff", muted, cutoff)
 	}
 }
+
+func TestOfficialSDKAlreadyAbsentTargetsAreIdempotent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		w.Write([]byte(`{"code":"not_found","msg":"already absent"}`))
+	}))
+	defer server.Close()
+	s := New(nil, config.Config{Env: "development", LivekitAPI: server.URL, LivekitWS: strings.Replace(server.URL, "http:", "ws:", 1), LivekitKey: "key", LivekitSecret: "secret"})
+	a, e := s.admin()
+	if e != nil {
+		t.Fatal(e)
+	}
+	ids, e := a.List(context.Background(), "room")
+	if e != nil || len(ids) != 0 {
+		t.Fatal("absent list not idempotent", e)
+	}
+	if e = a.Remove(context.Background(), "room", "absent", time.Now().Unix()+1); e != nil {
+		t.Fatal(e)
+	}
+	if e = a.Delete(context.Background(), "room"); e != nil {
+		t.Fatal(e)
+	}
+}

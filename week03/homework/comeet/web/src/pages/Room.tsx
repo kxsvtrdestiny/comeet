@@ -18,6 +18,7 @@ import {
   Copy,
 } from "lucide-react";
 import { useModeration } from "../services/moderation";
+import { RoomNotifications } from "../components/RoomNotifications";
 import { ControlFeedback } from "../components/ControlFeedback";
 import { ManualNotes } from "../components/ManualNotes";
 import { RoomDialog } from "../components/RoomDialog";
@@ -72,7 +73,7 @@ function LiveRoom() {
   const nav = useNavigate();
   const client = useRef<RoomClient | null>(null);
   const [state, setState] = useState<RoomState>(initial);
-  const [panel, setPanel] = useState<"members" | "chat" | null>(null);
+  const [panel, setPanel] = useState<"members" | "chat" | "notes" | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
@@ -82,13 +83,12 @@ function LiveRoom() {
     key: null,
   });
   const [focused, setFocused] = useState(false);
-  const [dialog, setDialog] = useState<
-    "connection" | "devices" | "notes" | null
-  >(null);
+  const [dialog, setDialog] = useState<"connection" | "devices" | null>(null);
   const [viewNotice, setViewNotice] = useState("");
   const [unread, setUnread] = useState(0);
   const lastMessage = useRef<number | null>(null);
   const panelElement = useRef<HTMLElement>(null);
+  const [notesOpened, setNotesOpened] = useState(false);
   const knownShares = useRef(new Set<string>());
   const media = useMedia(
     id,
@@ -104,6 +104,7 @@ function LiveRoom() {
     setUnread(0);
     lastMessage.current = null;
     setPanel(null);
+    setNotesOpened(false);
     knownShares.current.clear();
     const c = new RoomClient(id, session, setState);
     client.current = c;
@@ -227,12 +228,12 @@ function LiveRoom() {
         e.preventDefault();
         setPanel(null);
       }
-      if (e.key !== "Tab") return;
+      if (e.key !== "Tab" || panel === "notes") return;
       const items = Array.from(
-        el.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+        el.closest(".live-room")!.querySelectorAll<HTMLElement>(
+          '.room-panel button:not(:disabled), .room-panel textarea:not(:disabled), .room-toasts button:not(:disabled)',
         ),
-      );
+      ).filter((node) => node.getClientRects().length > 0);
       const first = items[0],
         last = items.at(-1);
       if (
@@ -249,14 +250,15 @@ function LiveRoom() {
         first?.focus();
       }
     };
-    el.addEventListener("keydown", keydown);
+    document.addEventListener("keydown", keydown);
     return () => {
-      el.removeEventListener("keydown", keydown);
+      document.removeEventListener("keydown", keydown);
       previous?.focus();
     };
   }, [panel]);
-  function togglePanel(next: "members" | "chat") {
+  function togglePanel(next: "members" | "chat" | "notes") {
     setFocused(false);
+    if (next === "notes") setNotesOpened(true);
     setPanel((p) => (p === next ? null : next));
   }
   function select(key: string) {
@@ -342,7 +344,10 @@ function LiveRoom() {
     );
   }
   return (
-    <div className={`room live-room ${focused ? "is-focused" : ""}`}>
+    <div
+      className={`room live-room ${focused ? "is-focused" : ""}`}
+      data-panel={panel || ""}
+    >
       <header className="room-header">
         <div className="room-heading">
           <h1 title={state.meeting?.title}>
@@ -365,6 +370,18 @@ function LiveRoom() {
           )}
         </div>
         <div className="room-actions">
+          {selection.mode === "manual" && (
+            <button
+              onClick={() =>
+                setSelection(
+                  nextSelection({ mode: "auto", key: null }, sources),
+                )
+              }
+              title="恢复自动选择"
+            >
+              恢复自动选择
+            </button>
+          )}
           <button
             aria-pressed={layout === "focus"}
             onClick={() => setLayout("focus")}
@@ -463,12 +480,6 @@ function LiveRoom() {
                 播放会议声音
               </button>
             )}
-          {state.controlNotice && (
-            <p className="view-notice" role="status">
-              {state.controlNotice}
-            </p>
-          )}
-          {isHost && <ControlFeedback control={control} />}
           {viewNotice && (
             <p className="view-notice" role="status">
               {viewNotice}
@@ -476,22 +487,10 @@ function LiveRoom() {
           )}
         </div>
         <AudioSubscriptions state={media.state} />
-        <div className={`room-body ${panel ? "has-panel" : ""}`}>
+        <div
+          className={`room-body ${panel ? "has-panel" : ""} ${panel === "notes" ? "notes-open" : ""}`}
+        >
           <section className={`room-stage ${layout}`} aria-label="参会成员">
-            <div className="view-mode">
-              <span>
-                {selection.mode === "manual" ? "已固定主画面" : "自动选择"}
-              </span>
-              <button
-                onClick={() =>
-                  setSelection(
-                    nextSelection({ mode: "auto", key: null }, sources),
-                  )
-                }
-              >
-                恢复自动选择
-              </button>
-            </div>
             {sources.length ? (
               layout === "grid" && !focused ? (
                 <div className="member-grid" data-count={sources.length}>
@@ -516,39 +515,52 @@ function LiveRoom() {
               </div>
             )}
           </section>
-          {panel && (
-            <>
+          <>
+            {panel && panel !== "notes" && (
               <button
                 className="drawer-backdrop"
                 aria-label="关闭侧栏遮罩"
                 onClick={() => setPanel(null)}
               />
-              <aside
-                className="room-panel"
-                ref={panelElement}
-                tabIndex={-1}
-                aria-label="成员与聊天面板"
-              >
-                <div className="tabs">
-                  <button
-                    onClick={() => setPanel("members")}
-                    aria-pressed={panel === "members"}
-                  >
-                    <Users size={16} />
-                    成员（{state.members.length}）
-                  </button>
-                  <button
-                    onClick={() => setPanel("chat")}
-                    aria-pressed={panel === "chat"}
-                  >
-                    <MessageSquare size={16} />
-                    聊天
-                  </button>
-                  <button aria-label="关闭面板" onClick={() => setPanel(null)}>
-                    <X size={18} />
-                  </button>
-                </div>
-                {panel === "members" ? (
+            )}
+            <aside
+              hidden={!panel}
+              className="room-panel"
+              ref={panelElement}
+              tabIndex={-1}
+              aria-label="成员聊天与笔记面板"
+            >
+              <div className="tabs">
+                <button
+                  onClick={() => setPanel("members")}
+                  aria-pressed={panel === "members"}
+                >
+                  <Users size={16} />
+                  成员（{state.members.length}）
+                </button>
+                <button
+                  onClick={() => setPanel("chat")}
+                  aria-pressed={panel === "chat"}
+                >
+                  <MessageSquare size={16} />
+                  聊天
+                </button>
+                <button
+                  onClick={() => togglePanel("notes")}
+                  aria-pressed={panel === "notes"}
+                >
+                  笔记
+                </button>
+                <button aria-label="关闭面板" onClick={() => setPanel(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="notes-panel" hidden={panel !== "notes"}>
+                {notesOpened && <ManualNotes key={id} meetingId={id} compact />}
+              </div>
+              {panel === "members" ? (
+                <div className="member-panel-content">
+                  {isHost && <ControlFeedback control={control} pendingOnly />}
                   <ul className="member-list">
                     {members.map((s) => (
                       <li key={s.key}>
@@ -603,118 +615,121 @@ function LiveRoom() {
                     ))}
                     {!sources.length && <li>尚未取得成员快照</li>}
                   </ul>
-                ) : (
-                  <>
-                    <div
-                      className="chat-log"
-                      ref={log}
-                      onScroll={(e) => {
-                        const el = e.currentTarget;
-                        stickToBottom.current =
-                          el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-                      }}
-                      aria-label="聊天记录"
-                      aria-live="polite"
-                    >
-                      {state.hasOlder && (
-                        <button
-                          className="text-button"
-                          disabled={
-                            state.loadingOlder || state.status !== "connected"
-                          }
-                          onClick={() => {
-                            stickToBottom.current = false;
-                            void client.current?.older();
-                          }}
-                        >
-                          {state.loadingOlder ? "正在加载…" : "加载更早消息"}
-                        </button>
-                      )}
-                      {!state.messages.length && (
-                        <p className="chat-empty">
-                          {state.status === "connected"
-                            ? "暂无聊天消息"
-                            : "等待聊天记录同步…"}
-                        </p>
-                      )}
-                      {state.messages.map((m) => (
-                        <article
-                          className={`chat-message ${m.senderId === session?.user.id ? "mine" : ""}`}
-                          key={m.id > 0 ? String(m.id) : m.clientMessageId}
-                          data-client-message-id={m.clientMessageId}
-                          data-message-id={m.id || undefined}
-                        >
-                          <header>
-                            <strong>{m.senderName}</strong>
-                            <time>
-                              {new Date(m.createdAt).toLocaleTimeString(
-                                "zh-CN",
-                              )}
-                            </time>
-                          </header>
-                          <p>{m.content}</p>
-                          {m.senderId === session?.user.id && (
-                            <small>
-                              {m.delivery === "sent" ? (
-                                <span className="sr-only">已发送</span>
-                              ) : m.delivery === "sending" ? (
-                                "发送中…"
-                              ) : (
-                                <>
-                                  <span>{m.error || "发送失败"}</span>
-                                  <button
-                                    disabled={state.status !== "connected"}
-                                    onClick={() =>
-                                      client.current?.retry(m.clientMessageId)
-                                    }
-                                  >
-                                    重试此消息
-                                  </button>
-                                </>
-                              )}
-                            </small>
-                          )}
-                        </article>
-                      ))}
-                    </div>
-                    <form className="chat-composer" onSubmit={send}>
-                      <label className="sr-only" htmlFor="chat-input">
-                        消息
-                      </label>
-                      <textarea
-                        id="chat-input"
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        maxLength={4000}
-                        disabled={state.status !== "connected"}
-                        placeholder={
-                          state.status === "connected"
-                            ? "输入消息（最多 2000 字符）"
-                            : "业务连接恢复后可发送"
-                        }
-                        rows={2}
-                      />
-                      {error && (
-                        <p role="alert" className="error">
-                          {error}
-                        </p>
-                      )}
+                </div>
+              ) : panel === "chat" ? (
+                <>
+                  <div
+                    className="chat-log"
+                    ref={log}
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      stickToBottom.current =
+                        el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+                    }}
+                    aria-label="聊天记录"
+                    aria-live="polite"
+                  >
+                    {state.hasOlder && (
                       <button
-                        className="button"
-                        disabled={state.status !== "connected" || !draft.trim()}
+                        className="text-button"
+                        disabled={
+                          state.loadingOlder || state.status !== "connected"
+                        }
+                        onClick={() => {
+                          stickToBottom.current = false;
+                          void client.current?.older();
+                        }}
                       >
-                        发送
+                        {state.loadingOlder ? "正在加载…" : "加载更早消息"}
                       </button>
-                    </form>
-                  </>
-                )}
-              </aside>
-            </>
-          )}
+                    )}
+                    {!state.messages.length && (
+                      <p className="chat-empty">
+                        {state.status === "connected"
+                          ? "暂无聊天消息"
+                          : "等待聊天记录同步…"}
+                      </p>
+                    )}
+                    {state.messages.map((m) => (
+                      <article
+                        className={`chat-message ${m.senderId === session?.user.id ? "mine" : ""}`}
+                        key={m.id > 0 ? String(m.id) : m.clientMessageId}
+                        data-client-message-id={m.clientMessageId}
+                        data-message-id={m.id || undefined}
+                      >
+                        <header>
+                          <strong>{m.senderName}</strong>
+                          <time>
+                            {new Date(m.createdAt).toLocaleTimeString("zh-CN")}
+                          </time>
+                        </header>
+                        <p>{m.content}</p>
+                        {m.senderId === session?.user.id && (
+                          <small>
+                            {m.delivery === "sent" ? (
+                              <span className="sr-only">已发送</span>
+                            ) : m.delivery === "sending" ? (
+                              "发送中…"
+                            ) : (
+                              <>
+                                <span>{m.error || "发送失败"}</span>
+                                <button
+                                  disabled={state.status !== "connected"}
+                                  onClick={() =>
+                                    client.current?.retry(m.clientMessageId)
+                                  }
+                                >
+                                  重试此消息
+                                </button>
+                              </>
+                            )}
+                          </small>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                  <form className="chat-composer" onSubmit={send}>
+                    <label className="sr-only" htmlFor="chat-input">
+                      消息
+                    </label>
+                    <textarea
+                      id="chat-input"
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      maxLength={4000}
+                      disabled={state.status !== "connected"}
+                      placeholder={
+                        state.status === "connected"
+                          ? "输入消息（最多 2000 字符）"
+                          : "业务连接恢复后可发送"
+                      }
+                      rows={2}
+                    />
+                    {error && (
+                      <p role="alert" className="error">
+                        {error}
+                      </p>
+                    )}
+                    <button
+                      className="button"
+                      disabled={state.status !== "connected" || !draft.trim()}
+                    >
+                      发送
+                    </button>
+                  </form>
+                </>
+              ) : null}
+            </aside>
+          </>
         </div>
       </div>
       <footer className="toolbar">
-        <button onClick={() => setDialog("notes")}>会议笔记</button>
+        <button
+          onClick={() => togglePanel("notes")}
+          aria-pressed={panel === "notes"}
+        >
+          会议笔记
+        </button>
         <button
           disabled={
             media.state.status !== "connected" || media.state.sharingBusy
@@ -786,20 +801,18 @@ function LiveRoom() {
           {leaving ? "离开中…" : "离开会议"}
         </button>
       </footer>
+      <RoomNotifications
+        control={control}
+        externalNotice={state.controlNotice}
+        externalId={state.controlNoticeId}
+        panel={panel}
+      />
       {dialog && (
         <RoomDialog
-          title={
-            dialog === "connection"
-              ? "连接详情"
-              : dialog === "notes"
-                ? "会议笔记"
-                : "设备设置"
-          }
+          title={dialog === "connection" ? "连接详情" : "设备设置"}
           close={() => setDialog(null)}
         >
-          {dialog === "notes" ? (
-            <ManualNotes meetingId={id} />
-          ) : dialog === "connection" ? (
+          {dialog === "connection" ? (
             <>
               <p>
                 聊天与成员连接：

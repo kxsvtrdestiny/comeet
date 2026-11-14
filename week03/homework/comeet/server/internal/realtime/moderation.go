@@ -26,8 +26,14 @@ type controlOp struct {
 // A separate gate serializes management actions. No DB transaction or realtime
 // mutex is held during upstream network calls; chat/heartbeats remain usable.
 func (s *Service) Control(ctx context.Context, who auth.Identity, meetingID, action, target string, in ControlInput) (ControlResult, error) {
+	if controlTrace(ctx) == "" {
+		ctx = WithControlRequest(ctx, uuid.NewString())
+	}
 	s.controlMu.Lock()
 	defer s.controlMu.Unlock()
+	if ctx.Err() != nil {
+		return ControlResult{}, s.controlFailure(ctx, controlOp{ID: in.RequestID, MeetingID: meetingID}, "wait_control", ctx.Err())
+	}
 	if action != "mute" && action != "remove" && action != "end" {
 		return ControlResult{}, apperr.Invalid("会控操作无效")
 	}
@@ -39,7 +45,7 @@ func (s *Service) Control(ctx context.Context, who auth.Identity, meetingID, act
 		if errors.Is(err, sql.ErrNoRows) {
 			return ControlResult{}, apperr.New(404, "NOT_FOUND", "会议不存在")
 		}
-		return ControlResult{}, err
+		return ControlResult{}, s.controlFailure(ctx, controlOp{ID: in.RequestID, MeetingID: meetingID}, "authorize_database", err)
 	}
 	if host != who.User.ID {
 		return ControlResult{}, apperr.New(403, "HOST_REQUIRED", "仅主持人可执行此操作")
@@ -49,7 +55,11 @@ func (s *Service) Control(ctx context.Context, who auth.Identity, meetingID, act
 	}
 	op, err := s.prepareControl(ctx, who.User.ID, meetingID, action, target, status, in.RequestID)
 	if err != nil {
-		return ControlResult{}, err
+		var ae *apperr.Error
+		if errors.As(err, &ae) {
+			return ControlResult{}, err
+		}
+		return ControlResult{}, s.controlFailure(ctx, op, "prepare_database", err)
 	}
 	if op.State == "completed" {
 		return ControlResult{op.ID, op.State}, nil
@@ -169,86 +179,66 @@ func (s *Service) closeControlSessions(ctx context.Context, op controlOp) error 
 	return nil
 }
 func (s *Service) applyControl(ctx context.Context, op controlOp) error {
+	if controlTrace(ctx) == "" {
+		ctx = WithControlRequest(ctx, uuid.NewString())
+	}
+	// Keep an HTTP retry within the client's 10s window. Each attempt can advance
+	// a subset of checkpoints; successful work is never replayed after a timeout.
+	attempt, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
 	if op.Action != "mute" {
-		if err := s.closeControlSessions(ctx, op); err != nil {
+		if !s.stepDone(attempt, op.ID, "close_sessions", "") {
+			if err := s.closeControlSessions(attempt, op); err != nil {
+				return s.controlFailure(ctx, op, "close_sessions", err)
+			}
+			if err := s.markStep(attempt, op.ID, "close_sessions", ""); err != nil {
+				return s.controlFailure(ctx, op, "checkpoint", err)
+			}
+		}
+		if err := s.prepareCleanup(attempt, op); err != nil {
+			return s.controlFailure(ctx, op, "snapshot", err)
+		}
+		if err := s.runCleanup(ctx, attempt, op); err != nil {
 			return err
 		}
-	}
-	// Only identities with an issued token can have an upstream media presence.
-	query := `SELECT g.session_id FROM media_grants g JOIN participant_sessions p ON p.id=g.session_id WHERE g.meeting_id=?`
-	args := []any{op.MeetingID}
-	if op.Action != "end" {
-		query += " AND p.user_id=?"
-		args = append(args, op.Target)
-	}
-	if op.Action == "mute" {
-		query += " AND p.state='online'"
-	}
-	rows, err := s.DB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
-	var identities []string
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
+	} else {
+		var identity string
+		err := s.DB.QueryRowContext(attempt, `SELECT g.session_id FROM media_grants g JOIN participant_sessions p ON p.id=g.session_id WHERE g.meeting_id=? AND p.user_id=? AND p.state='online' LIMIT 1`, op.MeetingID, op.Target).Scan(&identity)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = apperr.New(409, "MICROPHONE_NOT_PUBLISHED", "该成员当前未开麦")
 		}
-		identities = append(identities, id)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return err
-	}
-	if op.Action == "mute" && len(identities) == 0 {
-		return apperr.New(409, "MICROPHONE_NOT_PUBLISHED", "该成员当前未开麦")
-	}
-	if len(identities) > 0 {
+		if err != nil {
+			return s.controlFailure(ctx, op, "find_microphone", err)
+		}
 		admin, e := s.admin()
 		if e != nil {
-			return e
+			return s.controlFailure(ctx, op, "configuration", e)
 		}
-		callctx, cancel := mediaTimeout(ctx)
-		defer cancel()
-		for _, id := range identities {
-			if op.Action == "mute" {
-				err = admin.Mute(callctx, op.MeetingID, id)
-			} else {
-				err = admin.Remove(callctx, op.MeetingID, id, time.Now().Unix()+1)
-			}
-			if err != nil {
-				var ae *apperr.Error
-				if errors.As(err, &ae) {
-					return ae
-				}
-				return apperr.New(502, "MEDIA_CONTROL_FAILED", "媒体管理未完全完成，可重试；移出封禁或会议结束中状态仍保留")
-			}
-		}
-		if op.Action == "end" {
-			if err = admin.Delete(callctx, op.MeetingID); err != nil {
-				return apperr.New(502, "MEDIA_CONTROL_FAILED", "媒体房间清理失败，会议仍在结束中，请重试")
-			}
+		call, release := mediaTimeout(attempt)
+		err = admin.Mute(call, op.MeetingID, identity)
+		release()
+		if err != nil {
+			return s.controlFailure(ctx, op, "mute_microphone", err)
 		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tx, err := s.DB.BeginTx(ctx, nil)
+	tx, err := s.DB.BeginTx(attempt, nil)
 	if err != nil {
-		return err
+		return s.controlFailure(ctx, op, "finalize_database", err)
 	}
 	defer tx.Rollback()
+	failDB := func(e error) error { tx.Rollback(); return s.controlFailure(ctx, op, "finalize_database", e) }
 	if op.Action == "end" {
-		if _, err = tx.ExecContext(ctx, "UPDATE meetings SET status='ended',ended_at=COALESCE(ended_at,?) WHERE id=?", time.Now().UnixMilli(), op.MeetingID); err != nil {
-			return err
+		if _, err = tx.ExecContext(attempt, "UPDATE meetings SET status='ended',ended_at=COALESCE(ended_at,?) WHERE id=? AND status='ending'", time.Now().UnixMilli(), op.MeetingID); err != nil {
+			return failDB(err)
 		}
 	}
-	if _, err = tx.ExecContext(ctx, "UPDATE moderation_operations SET state='completed' WHERE id=?", op.ID); err != nil {
-		return err
+	if _, err = tx.ExecContext(attempt, "UPDATE moderation_operations SET state='completed',last_error_code='',last_error_step='',last_diagnostic_id='',last_error_message='' WHERE id=?", op.ID); err != nil {
+		return failDB(err)
 	}
 	if err = tx.Commit(); err != nil {
-		return err
+		return s.controlFailure(ctx, op, "finalize_database", err)
 	}
 	if op.Action == "mute" {
 		for _, p := range s.peers {
@@ -325,18 +315,18 @@ func (s *Service) PendingControls(ctx context.Context, who auth.Identity, meetin
 	if host != who.User.ID {
 		return nil, apperr.New(403, "HOST_REQUIRED", "仅主持人可查看会控操作")
 	}
-	rows, err := s.DB.QueryContext(ctx, "SELECT id,action,target_user_id FROM moderation_operations WHERE meeting_id=? AND state='pending' ORDER BY created_at", meetingID)
+	rows, err := s.DB.QueryContext(ctx, "SELECT id,action,target_user_id,last_error_code,last_error_step,last_diagnostic_id,last_error_message FROM moderation_operations WHERE meeting_id=? AND state='pending' ORDER BY created_at", meetingID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	list := []map[string]string{}
 	for rows.Next() {
-		var id, action, target string
-		if err = rows.Scan(&id, &action, &target); err != nil {
+		var id, action, target, code, step, diagnostic, message string
+		if err = rows.Scan(&id, &action, &target, &code, &step, &diagnostic, &message); err != nil {
 			return nil, err
 		}
-		list = append(list, map[string]string{"id": id, "action": action, "targetUserId": target})
+		list = append(list, map[string]string{"id": id, "action": action, "targetUserId": target, "errorCode": code, "step": step, "diagnosticId": diagnostic, "message": message})
 	}
 	return list, rows.Err()
 }

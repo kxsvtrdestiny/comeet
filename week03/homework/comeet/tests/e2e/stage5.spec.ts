@@ -156,6 +156,9 @@ test("real Go moderation UI: denied guest controls, mute-without-mic, remove ret
     ).toBeVisible();
     await a.getByRole("button", { name: "重试移出成员", exact: true }).click();
     await expect(b).toHaveURL("/");
+    const success = a.locator(".room-toast.success");
+    await expect(success).toContainText("成员已移出，媒体清理完成");
+    await expect(success).toHaveCount(0, { timeout: 8000 });
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);
     expect(

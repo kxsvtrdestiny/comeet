@@ -49,8 +49,10 @@ export interface RoomState {
   conflict: boolean;
   terminalCode?: string;
   controlNotice?: string;
+  controlNoticeId?: string;
 }
 interface Frame {
+  eventId?: string;
   v: number;
   type: string;
   requestId?: string;
@@ -271,6 +273,7 @@ export class RoomClient {
     }
     if (event.type === "member.muted") {
       this.emit({
+        controlNoticeId: event.eventId,
         controlNotice: (event.payload as { message: string }).message,
       });
       return;

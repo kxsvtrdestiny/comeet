@@ -15,7 +15,7 @@ func TestMigrationPersistence(t *testing.T) {
 			t.Fatal(e)
 		}
 		var count int
-		if e = db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); e != nil || count != 5 {
+		if e = db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); e != nil || count != 6 {
 			t.Fatalf("migration count=%d error=%v", count, e)
 		}
 		var foreignKeys, timeout int
@@ -80,7 +80,7 @@ func TestUpgradeStage5DatabasePreservesExistingRows(t *testing.T) {
 		}
 		var n int
 		db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&n)
-		if n != 5 {
+		if n != 6 {
 			t.Fatal(n)
 		}
 		db.Close()

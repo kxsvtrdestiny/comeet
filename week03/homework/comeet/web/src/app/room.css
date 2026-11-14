@@ -570,3 +570,155 @@
   flex-wrap: wrap;
   margin: 4px 0;
 }
+
+/* The editor remains mounted while hidden; opening it never covers the share. */
+.live-room {
+  position: relative;
+}
+.live-room .room-panel[hidden],
+.live-room [hidden] {
+  display: none !important;
+}
+.live-room .notes-panel {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.live-room .notes-panel .manual-notes {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.live-room .notes-panel .manual-notes > .muted {
+  font-size: 11px;
+  margin: 6px 0;
+}
+.live-room .note-editor {
+  flex-shrink: 0;
+}
+.live-room .note-editor textarea {
+  min-height: 64px;
+  height: clamp(80px, 19dvh, 180px);
+  max-height: 27dvh;
+}
+.live-room .note-savebar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: white;
+  padding: 4px 0;
+}
+.live-room .note-savebar .button {
+  background: #4f5fe8;
+  color: white;
+}
+.live-room .notes-extra {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+.live-room .notes-extra pre {
+  font-size: 12px;
+}
+.live-room .member-panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.live-room .member-panel-content .control-feedback {
+  padding: 8px 0;
+}
+.live-room .control-feedback [role="alert"] {
+  overflow-wrap: anywhere;
+}
+.live-room .room-toasts {
+  position: absolute;
+  bottom: var(--toast-bottom, 90px);
+  right: var(--toast-right, 12px);
+  width: min(330px, calc(100% - 24px));
+  max-height: min(38dvh, 300px);
+  overflow: auto;
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.live-room .room-toast {
+  pointer-events: auto;
+  background: white;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #4f5fe8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 5px 20px #33415524;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.live-room .room-toast.error {
+  border-left-color: #b84343;
+}
+.live-room .room-toast p {
+  margin: 0 0 6px;
+}
+.live-room .room-toast > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.live-room .room-toast button {
+  font-size: 12px;
+  padding: 4px 7px;
+}
+@media (max-width: 767px) {
+  .live-room .room-body.notes-open {
+    grid-template-rows: minmax(110px, 1fr) minmax(245px, 1fr);
+  }
+  .live-room .notes-open .room-panel {
+    position: static;
+    width: auto;
+    height: auto;
+    box-shadow: none;
+    border-top: 1px solid #e2e8f0;
+    z-index: auto;
+  }
+  .live-room .notes-open .thumbnail-strip {
+    display: none;
+  }
+  .live-room .notes-open .note-editor textarea {
+    height: 70px;
+    max-height: 100px;
+  }
+  .live-room .room-toasts {
+    max-height: 125px;
+  }
+  .live-room .room-actions button[title="恢复自动选择"] {
+    font-size: 10px;
+    max-width: 64px;
+    padding: 4px;
+  }
+}
+.live-room .note-editor label {
+  margin: 4px 0;
+}
+.live-room .note-savebar button {
+  margin: 0;
+}
+.live-room .notes-panel .manual-notes > .muted {
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  .live-room .room-body.notes-open {
+    grid-template-rows: minmax(110px, 1fr) minmax(285px, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .live-room .notes-panel .manual-notes > .muted {
+    display: none;
+  }
+}

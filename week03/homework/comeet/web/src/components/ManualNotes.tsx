@@ -9,7 +9,13 @@ export interface Note {
   version: number;
   updatedAt: number;
 }
-export function ManualNotes({ meetingId }: { meetingId: string }) {
+export function ManualNotes({
+  meetingId,
+  compact = false,
+}: {
+  meetingId: string;
+  compact?: boolean;
+}) {
   const user = useAuth((s) => s.session?.user.id);
   const [notes, setNotes] = useState<Note[]>([]),
     [draft, setDraft] = useState(""),
@@ -87,81 +93,88 @@ export function ManualNotes({ meetingId }: { meetingId: string }) {
   }
   return (
     <section className="manual-notes" aria-label="手动会议笔记">
-      <h2>手动会议笔记</h2>
+      {!compact && <h2>手动会议笔记</h2>}
       <p className="muted">
         仅本人可编辑自己的笔记；主持人和实际参会者可查看本场记录。保存后的内容刷新可恢复。
       </p>
-      {loading ? (
-        <p role="status">正在读取笔记…</p>
-      ) : (
-        <>
-          <label>
-            我的笔记
-            <textarea
-              aria-label="我的笔记"
-              rows={6}
-              maxLength={10000}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                dirty.current = true;
-                setNotice("有未保存的修改");
+      <div className="note-editor">
+        {loading ? (
+          <p role="status">正在读取笔记…</p>
+        ) : (
+          <>
+            <label>
+              我的笔记
+              <textarea
+                aria-label="我的笔记"
+                rows={6}
+                maxLength={10000}
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  dirty.current = true;
+                  setNotice("有未保存的修改");
+                }}
+                disabled={busy}
+              />
+            </label>
+            <div className="note-savebar">
+              <button
+                className="button"
+                onClick={() => void save()}
+                disabled={busy || !!conflict}
+              >
+                {busy ? "保存中…" : "保存笔记"}
+              </button>
+              <small> 当前版本 {version}</small>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="notes-extra">
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
+        {error && loading === false && !dirty.current && !notes.length && (
+          <button onClick={() => setAttempt((n) => n + 1)}>重新读取笔记</button>
+        )}
+        {notice && <p role="status">{notice}</p>}
+        {conflict && (
+          <section className="note-conflict" aria-label="笔记版本冲突">
+            <h3>服务器已有更新（版本 {conflict.version}）</h3>
+            <pre>{conflict.content}</pre>
+            <p>你的本地内容仍在编辑框中。请比较后选择：</p>
+            <button
+              onClick={() => {
+                setDraft(conflict.content);
+                setVersion(conflict.version);
+                setConflict(null);
+                setError("");
+                dirty.current = false;
+                setNotice("已加载服务器版本");
               }}
-              disabled={busy}
-            />
-          </label>
-          <button
-            className="button"
-            onClick={() => void save()}
-            disabled={busy || !!conflict}
-          >
-            {busy ? "保存中…" : "保存笔记"}
-          </button>
-          <small> 当前版本 {version}</small>
-        </>
-      )}
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      {error && loading === false && !dirty.current && !notes.length && (
-        <button onClick={() => setAttempt((n) => n + 1)}>重新读取笔记</button>
-      )}
-      {notice && <p role="status">{notice}</p>}
-      {conflict && (
-        <section className="note-conflict" aria-label="笔记版本冲突">
-          <h3>服务器已有更新（版本 {conflict.version}）</h3>
-          <pre>{conflict.content}</pre>
-          <p>你的本地内容仍在编辑框中。请比较后选择：</p>
-          <button
-            onClick={() => {
-              setDraft(conflict.content);
-              setVersion(conflict.version);
-              setConflict(null);
-              setError("");
-              dirty.current = false;
-              setNotice("已加载服务器版本");
-            }}
-          >
-            加载服务器版本，替换本地内容
-          </button>
-          <button disabled={busy} onClick={() => void save(conflict.version)}>
-            保留本地内容，以最新版本重试保存
-          </button>
-        </section>
-      )}
-      {notes
-        .filter((n) => n.authorId !== user)
-        .map((n) => (
-          <article className="record-note" key={n.id}>
-            <h3>{n.authorName}的笔记</h3>
-            <small>
-              版本 {n.version} · {new Date(n.updatedAt).toLocaleString("zh-CN")}
-            </small>
-            <pre>{n.content || "（空笔记）"}</pre>
-          </article>
-        ))}
+            >
+              加载服务器版本，替换本地内容
+            </button>
+            <button disabled={busy} onClick={() => void save(conflict.version)}>
+              保留本地内容，以最新版本重试保存
+            </button>
+          </section>
+        )}
+        {notes
+          .filter((n) => n.authorId !== user)
+          .map((n) => (
+            <article className="record-note" key={n.id}>
+              <h3>{n.authorName}的笔记</h3>
+              <small>
+                版本 {n.version} ·{" "}
+                {new Date(n.updatedAt).toLocaleString("zh-CN")}
+              </small>
+              <pre>{n.content || "（空笔记）"}</pre>
+            </article>
+          ))}
+      </div>
     </section>
   );
 }

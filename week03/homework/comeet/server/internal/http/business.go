@@ -259,7 +259,7 @@ func business(r chi.Router, db *sql.DB, c config.Config, hub *realtime.Service) 
 				if !decode(w, r, &in) {
 					return
 				}
-				result, e := hub.Control(r.Context(), identity(r), chi.URLParam(r, "id"), action, chi.URLParam(r, "userId"), in)
+				result, e := hub.Control(realtime.WithControlRequest(r.Context(), w.Header().Get("X-Request-ID")), identity(r), chi.URLParam(r, "id"), action, chi.URLParam(r, "userId"), in)
 				if e != nil {
 					fail(w, r, e)
 					return

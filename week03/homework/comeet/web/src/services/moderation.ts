@@ -1,16 +1,26 @@
 import { useEffect, useState } from "react";
-import { post, request } from "./api";
+import { ApiError, post, request } from "./api";
 export type ControlAction = "mute" | "remove" | "end";
 export interface PendingControl {
   id: string;
   action: ControlAction;
   targetUserId: string;
+  diagnosticId?: string;
+  step?: string;
+  errorCode?: string;
+  message?: string;
 }
 export function useModeration(
   meetingId: string,
   enabled: boolean,
   ended: () => void,
 ) {
+  const [feedback, setFeedback] = useState<{
+    id: number;
+    kind: "success" | "error";
+    text: string;
+    retry?: PendingControl;
+  } | null>(null);
   const [pending, setPending] = useState<PendingControl[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -24,7 +34,14 @@ export function useModeration(
     )
       .then(setPending)
       .catch((e) => {
-        if (!abort.signal.aborted) setError((e as Error).message);
+        if (!abort.signal.aborted) {
+          setError((e as Error).message);
+          setFeedback({
+            id: Date.now(),
+            kind: "error",
+            text: (e as Error).message,
+          });
+        }
       });
     return () => abort.abort();
   }, [meetingId, enabled]);
@@ -63,10 +80,39 @@ export function useModeration(
             ? "成员已移出，媒体清理完成"
             : "会议已结束",
       );
+      setFeedback({
+        id: Date.now(),
+        kind: "success",
+        text:
+          action === "mute"
+            ? "已执行一次静音，成员可自行开麦"
+            : action === "remove"
+              ? "成员已移出，媒体清理完成"
+              : "会议已结束",
+      });
       if (action === "end") ended();
     } catch (e) {
-      setError((e as Error).message);
-      setPending((p) => (p.some((v) => v.id === op.id) ? p : [...p, op]));
+      const text =
+        (e as Error).message +
+        (e instanceof ApiError &&
+        e.requestId &&
+        !(e as Error).message.includes(e.requestId)
+          ? `（请求编号：${e.requestId}）`
+          : "");
+      setError(text);
+      const retryable =
+        !(e instanceof ApiError) ||
+        e.status === 0 ||
+        e.status >= 500 ||
+        e.code === "MICROPHONE_NOT_PUBLISHED";
+      if (retryable)
+        setPending((p) => [...p.filter((v) => v.id !== op.id), { ...op, message: text }]);
+      setFeedback({
+        id: Date.now(),
+        kind: "error",
+        text,
+        retry: retryable ? op : undefined,
+      });
     } finally {
       setBusy(false);
     }
@@ -81,5 +127,5 @@ export function useModeration(
     )
       void run(action, target);
   }
-  return { pending, busy, error, notice, run, confirm };
+  return { pending, busy, error, notice, run, confirm, feedback };
 }

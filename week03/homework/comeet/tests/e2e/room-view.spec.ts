@@ -94,7 +94,7 @@ test("light room: local focus, panel/unread, responsive drawer and real chat sur
     }
     const [a, b] = pages;
     await expect(a.locator(".member-tile")).toHaveCount(2);
-    await expect(a.locator(".room-panel")).toHaveCount(0);
+    await expect(a.locator(".room-panel")).not.toBeVisible();
     await expect(a.locator(".connection-status")).toHaveCount(0);
     await a.getByRole("button", { name: "连接详情", exact: true }).click();
     await expect(a.getByRole("dialog")).toContainText("聊天与成员连接：正常");
@@ -163,7 +163,7 @@ test("light room: local focus, panel/unread, responsive drawer and real chat sur
     await a.locator(".toolbar").getByRole("button", { name: /^聊天/ }).click();
     await expect(a.getByRole("button", { name: "关闭面板" })).toBeInViewport();
     await a.keyboard.press("Escape");
-    await expect(a.locator(".room-panel")).toHaveCount(0);
+    await expect(a.locator(".room-panel")).not.toBeVisible();
     await a.setViewportSize({ width: 1440, height: 900 });
     await a.screenshot({ path: "test-results/room-light-desktop.png" });
     expect(

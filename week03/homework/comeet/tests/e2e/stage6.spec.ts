@@ -71,7 +71,7 @@ test("real records, chat, private notes, conflict resolution, search and outside
     await expect(
       a.getByRole("status").filter({ hasText: "已保存" }),
     ).toBeVisible();
-    await a.getByRole("button", { name: "关闭对话框" }).click();
+    await a.getByRole("button", { name: "关闭面板" }).click();
     a.once("dialog", (d) => d.accept());
     await a.getByRole("button", { name: "结束会议", exact: true }).click();
     await expect(a).toHaveURL("/");

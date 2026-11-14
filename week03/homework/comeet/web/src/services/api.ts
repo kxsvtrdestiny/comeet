@@ -17,6 +17,7 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public status: number,
+    public requestId?: string,
   ) {
     super(message);
   }
@@ -68,7 +69,12 @@ export async function request<T>(
             ? "登录已过期或已撤销，请重新登录"
             : "登录已失效，请重新登录",
         );
-    throw new ApiError(body.code, body.message, response.status);
+    throw new ApiError(
+      body.code,
+      body.message,
+      response.status,
+      body.requestId,
+    );
   }
   return body.data;
 }

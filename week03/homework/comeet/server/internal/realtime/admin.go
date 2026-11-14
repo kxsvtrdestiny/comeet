@@ -13,6 +13,7 @@ import (
 
 // Narrow seam for deterministic tests; production uses the official Go RoomService SDK.
 type MediaAdmin interface {
+	List(context.Context, string) ([]string, error)
 	Mute(context.Context, string, string) error
 	Remove(context.Context, string, string, int64) error
 	Delete(context.Context, string) error
@@ -22,6 +23,21 @@ type livekitAdmin struct{ client *lksdk.RoomServiceClient }
 func absent(err error) bool {
 	var e twirp.Error
 	return errors.As(err, &e) && e.Code() == twirp.NotFound
+}
+func (a livekitAdmin) List(ctx context.Context, room string) ([]string, error) {
+	result, err := a.client.ListParticipants(ctx, &livekit.ListParticipantsRequest{Room: room})
+	if absent(err) {
+		logAbsent(ctx, "list_participants")
+		return []string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(result.Participants))
+	for _, p := range result.Participants {
+		ids = append(ids, p.Identity)
+	}
+	return ids, nil
 }
 func (a livekitAdmin) Mute(ctx context.Context, room, identity string) error {
 	p, err := a.client.GetParticipant(ctx, &livekit.RoomParticipantIdentity{Room: room, Identity: identity})
@@ -43,6 +59,7 @@ func (a livekitAdmin) Remove(ctx context.Context, room, identity string, cutoff 
 	_, err := a.client.RemoveParticipant(ctx, &livekit.RoomParticipantIdentity{Room: room, Identity: identity, RevokeTokenTs: cutoff})
 	// Repeated removal is complete when the upstream explicitly reports no participant.
 	if absent(err) {
+		logAbsent(ctx, "remove_participant")
 		return nil
 	}
 	return err
@@ -50,6 +67,7 @@ func (a livekitAdmin) Remove(ctx context.Context, room, identity string, cutoff 
 func (a livekitAdmin) Delete(ctx context.Context, room string) error {
 	_, err := a.client.DeleteRoom(ctx, &livekit.DeleteRoomRequest{Room: room})
 	if absent(err) {
+		logAbsent(ctx, "delete_room")
 		return nil
 	}
 	return err
